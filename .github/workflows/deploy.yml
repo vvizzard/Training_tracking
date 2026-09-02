@@ -23,7 +23,9 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm ci
+      # npm install et non npm ci : fdir déclare picomatch en peer dependency
+      # optionnelle, que la validation stricte de npm ci refuse de résoudre.
+      - run: npm install --no-audit --no-fund
       - run: npm run build
 
       - name: Deploy
