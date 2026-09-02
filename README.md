@@ -27,51 +27,43 @@ npm run preview   # sert dist/ en local pour vérifier le build
 
 ## Déploiement sur GitHub Pages
 
+**En ligne : https://vvizzard.github.io/Training_tracking/**
+
 `vite.config.js` utilise `base: './'` : les assets sont référencés en relatif, donc le build
 fonctionne aussi bien à la racine d'un domaine que dans un sous-chemin
-`https://<utilisateur>.github.io/<repo>/`. Aucune configuration à changer selon le nom du repo.
+`https://<utilisateur>.github.io/<repo>/`.
 
-### Méthode recommandée : GitHub Actions (automatique)
+Le déploiement est automatique : à chaque push sur `main`, le workflow
+`.github/workflows/deploy.yml` build le projet et publie `dist/` sur la branche `gh-pages`
+via `peaceiris/actions-gh-pages`. Rien d'autre à faire que pousser.
 
-Le workflow `.github/workflows/deploy.yml` est déjà présent. Il build le projet et publie
-`dist/` sur la branche `gh-pages` via `peaceiris/actions-gh-pages` à chaque push sur `main`.
+```bash
+git push origin main
+```
 
-1. Crée un repo sur GitHub et pousse le projet :
+### Configuration déjà en place
 
-   ```bash
-   git init
-   git add .
-   git commit -m "Suivi des charges"
-   git branch -M main
-   git remote add origin https://github.com/<utilisateur>/<repo>.git
-   git push -u origin main
-   ```
+- **Settings → Pages** : source `Deploy from a branch`, branche `gh-pages`, dossier `/ (root)`.
+- **Settings → Actions → General → Workflow permissions** : `Read and write permissions`,
+  sans quoi l'action ne peut pas créer la branche `gh-pages` (c'est `read` par défaut sur un
+  dépôt neuf, et le déploiement échoue).
 
-2. Le workflow se lance tout seul (onglet **Actions**). Au premier passage il crée la branche
-   `gh-pages`.
+### Note sur `npm install` en CI
 
-3. Dans **Settings → Pages**, choisis :
-   - **Source** : `Deploy from a branch`
-   - **Branch** : `gh-pages` / `/ (root)`
-
-4. Le site est en ligne sur `https://<utilisateur>.github.io/<repo>/`. Chaque push sur `main`
-   redéploie automatiquement.
-
-> Si l'action échoue avec une erreur de permission, va dans
-> **Settings → Actions → General → Workflow permissions** et sélectionne
-> **Read and write permissions**.
+Le workflow utilise `npm install` et non `npm ci`. `fdir`, une dépendance transitive de Vite,
+déclare `picomatch` en peer dependency **optionnelle** ; la validation stricte de `npm ci`
+refuse la résolution produite sur le runner Linux et échoue avec
+`lock file's picomatch@2.3.2 does not satisfy picomatch@4.0.7`, quelle que soit la version de
+Node. `npm install` résout correctement.
 
 ### Alternative : déploiement manuel
 
-Le script `deploy` fait le build et pousse `dist/` sur la branche `gh-pages` (via le paquet
-`gh-pages`, déjà en devDependency) :
+Le script `deploy` fait le build et pousse `dist/` sur `gh-pages` (via le paquet `gh-pages`,
+déjà en devDependency), sans passer par l'action :
 
 ```bash
 npm run deploy
 ```
-
-À lancer depuis un repo déjà relié à un remote GitHub. La configuration Pages reste la même :
-branche `gh-pages`, dossier `/ (root)`.
 
 ## Données
 
