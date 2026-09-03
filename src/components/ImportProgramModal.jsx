@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Check, FileJson, Trash2, Upload, X } from 'lucide-react'
-import { EXAMPLE, parseImport, unknownExercises } from '../programImport.js'
+import { useEffect, useRef, useState } from 'react'
+import { AlertTriangle, Check, FileJson, Plus, Trash2, Upload, X } from 'lucide-react'
+import { EXAMPLE, parseImport } from '../programImport.js'
+import { missingFor } from '../programSync.js'
 import { fmtDateWeekday } from '../utils.js'
 
 export default function ImportProgramModal({
@@ -23,8 +24,6 @@ export default function ImportProgramModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const names = useMemo(() => new Set(exercises.map((e) => e.name)), [exercises])
-
   function check(value) {
     const raw = value.trim()
     if (!raw) {
@@ -34,7 +33,7 @@ export default function ImportProgramModal({
     const parsed = parseImport(raw)
     setResult({
       ...parsed,
-      missing: parsed.programs.map((p) => unknownExercises(p, names)),
+      missing: parsed.programs.map((p) => missingFor([p], exercises)),
     })
   }
 
@@ -151,10 +150,21 @@ export default function ImportProgramModal({
                     {p.days.length} jour{p.days.length > 1 ? 's' : ''} · du{' '}
                     {fmtDateWeekday(p.start)} au {fmtDateWeekday(p.end)}
                   </p>
-                  {result.missing[i].length > 0 && (
-                    <p className="import-prog-warn">
-                      <AlertTriangle size={13} /> Exercices absents de ta liste,
-                      donc sans charge : {result.missing[i].join(', ')}
+                  {(result.missing[i].newExercises.length > 0 ||
+                    result.missing[i].newVariants.length > 0) && (
+                    <p className="import-prog-add">
+                      <Plus size={13} /> Seront créés :{' '}
+                      {result.missing[i].newExercises.length > 0 &&
+                        `${result.missing[i].newExercises.length} exercice${
+                          result.missing[i].newExercises.length > 1 ? 's' : ''
+                        } (${result.missing[i].newExercises.join(', ')})`}
+                      {result.missing[i].newExercises.length > 0 &&
+                        result.missing[i].newVariants.length > 0 &&
+                        ' et '}
+                      {result.missing[i].newVariants.length > 0 &&
+                        `${result.missing[i].newVariants.length} déclinaison${
+                          result.missing[i].newVariants.length > 1 ? 's' : ''
+                        }`}
                     </p>
                   )}
                 </div>

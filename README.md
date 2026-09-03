@@ -94,6 +94,50 @@ l'exercice retenu n'a pas ce schéma exact — cas d'un remplacement, `4 x max p
 > n'est pas stocké dans le `localStorage` et n'est pas modifiable depuis l'interface. Les
 > remarques sont des résumés en français des notes du coach, pas leur reprise mot pour mot.
 
+## Profils : un programme partagé entre appareils
+
+Le programme peut venir d'un fichier servi avec le site plutôt que du navigateur.
+À l'ouverture, l'app demande un **nom de profil** et va chercher
+`public/programmes/<nom>.json`. Le programme est donc identique sur n'importe quel
+téléphone ou navigateur, et le mettre à jour se fait en modifiant le fichier dans
+le dépôt.
+
+```
+public/programmes/
+├── README.md          ← mode d'emploi, à côté des fichiers
+├── zacharie.json      ← s'ouvre en tapant « Zacharie »
+└── <autre-nom>.json   ← un fichier par profil
+```
+
+Le nom saisi est mis en minuscules sans accent pour former le nom du fichier, et
+doit aussi figurer **dans** le fichier, en champ `profile` — sinon l'app refuse
+d'ouvrir le profil, ce qui évite qu'un fichier renommé passe inaperçu.
+
+**Pour ajouter ou modifier un programme :** éditer le `.json`, `git push` sur
+`main`, attendre le déploiement (environ une minute). La mise à jour apparaît
+partout à la prochaine ouverture — le fichier est relu à chaque ouverture, et sa
+dernière version est gardée en cache pour rester utilisable hors ligne.
+
+Les **données sont cloisonnées par profil** : les clés de `localStorage` sont
+suffixées par le nom (`suivi_charges_v5__zacharie`), donc deux profils ouverts sur
+le même navigateur gardent chacun leurs charges. Les données enregistrées avant
+l'arrivée des profils sont reprises une fois, vers le premier profil ouvert, sans
+que l'ancienne clé soit supprimée.
+
+« Continuer sans profil » garde le programme intégré et les clés historiques.
+L'icône de profil, dans l'en-tête de la page Programme, permet d'en changer.
+
+> Ce n'est **pas une authentification**. Les fichiers sont publics et n'importe
+> qui connaissant un nom de profil peut l'ouvrir. Les charges, elles, ne quittent
+> jamais le navigateur.
+
+### Priorité entre programmes
+
+Pour une même date : **import manuel > fichier de profil > programme intégré**.
+Une action explicite n'est ainsi jamais écrasée par la relecture du fichier de
+profil en arrière-plan. Les journées portent un badge « profil » ou « importé »
+selon leur origine.
+
 ## Importer un programme (JSON)
 
 Le bouton d'import de la page Programme accepte un fichier `.json` ou du JSON collé. Le
@@ -178,8 +222,11 @@ Raccourcis tolérés, pour que le JSON reste écrivable à la main :
 - le fichier peut contenir un seul programme, un tableau de programmes, ou
   `{ "programs": [...] }`.
 
-Un exercice cité mais absent de la liste n'empêche pas l'import : il est signalé avant
-validation, puis affiché sans charge dans la séance.
+**Les exercices et déclinaisons manquants sont créés à l'import.** Un exercice cité mais absent
+de la liste est ajouté dans la zone « Autre » ; un schéma de reps inconnu devient une nouvelle
+déclinaison vide, prête à recevoir une charge. Le décompte est annoncé dans l'aperçu avant
+validation (« Seront créés : 2 exercices et 2 déclinaisons »). Les fichiers de profil passent
+par le même mécanisme à chaque ouverture.
 
 Les programmes importés sont enregistrés sous `suivi_programmes_importes_v1` et **prennent la
 main sur les programmes intégrés aux mêmes dates**, le plus récemment importé gagnant en cas de
@@ -243,6 +290,8 @@ du navigateur :
 )
 localStorage.removeItem('suivi_programme_choix_v1')
 localStorage.removeItem('suivi_programmes_importes_v1')
+// et, si un profil est actif, les mêmes clés suffixées par son nom :
+// suivi_charges_v5__zacharie, suivi_programme_choix_v1__zacharie, etc.
 ```
 
 Les données étant locales au navigateur, elles ne sont ni synchronisées entre appareils ni

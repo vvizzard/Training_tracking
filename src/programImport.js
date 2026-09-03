@@ -327,14 +327,18 @@ function normProgram(raw, path, errors) {
 // Point d'entrée : accepte un programme, un tableau de programmes,
 // ou { "programs": [...] }.
 export function parseImport(text) {
-  const errors = []
   let raw
   try {
     raw = JSON.parse(text)
   } catch (err) {
     return { programs: [], errors: [`JSON illisible : ${err.message}`] }
   }
+  return parseImportData(raw)
+}
 
+// Même chose, à partir d'une valeur déjà désérialisée.
+export function parseImportData(raw) {
+  const errors = []
   const list = Array.isArray(raw)
     ? raw
     : Array.isArray(raw && raw.programs)

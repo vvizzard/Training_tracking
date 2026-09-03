@@ -1046,19 +1046,22 @@ export const PROGRAM_END = PROGRAMS[PROGRAMS.length - 1].end
 // Retourne { program, day, dayKey } pour une date ISO, ou null si aucun
 // programme ne la couvre. `day` vaut null pour un jour de repos.
 //
-// Les programmes importés sont consultés d'abord, du plus récent au plus
-// ancien : un import couvrant une date déjà prévue par un programme intégré
-// prend la main. `dayKey` identifie la journée dans les clés de choix — un
+// Les programmes prioritaires sont consultés d'abord, du dernier au premier
+// de la liste. L'appelant les range du moins au plus prioritaire : programmes
+// du profil, puis imports manuels, ces derniers l'emportant pour qu'une action
+// explicite ne soit jamais écrasée par une récupération en arrière-plan. `dayKey` identifie la journée dans les clés de choix — un
 // index pour les programmes intégrés, la date pour les importés, qui sont
 // datés journée par journée.
-export function findProgramDay(iso, imported = []) {
-  for (let i = imported.length - 1; i >= 0; i -= 1) {
-    const program = imported[i]
+export function findProgramDay(iso, overrides = []) {
+  for (let i = overrides.length - 1; i >= 0; i -= 1) {
+    const program = overrides[i]
     if (iso < program.start || iso > program.end) continue
     const day = program.days.find((d) => d.date === iso)
     if (!day) continue
     return {
-      program: { ...program, source: 'import' },
+      // `source` est posé par l'appelant : « profil » pour un fichier de profil,
+      // « import » pour un import manuel.
+      program: { ...program, source: program.source || 'import' },
       day: day.rest ? null : day,
       dayKey: iso,
     }

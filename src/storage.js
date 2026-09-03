@@ -1,6 +1,44 @@
 import { buildSeed, RPE_BY_KEY, ZONE_BY_NAME } from './seed.js'
 import { DEFAULT_ZONE, newId, RM_SCHEME, todayISO, ZONES } from './utils.js'
 
+// Les données sont cloisonnées par profil : deux profils ouverts sur le même
+// navigateur gardent chacun leurs charges. Le suffixe est vide quand aucun
+// profil n'est actif, ce qui laisse les clés historiques inchangées.
+let scope = ''
+
+export function setStorageScope(slug) {
+  scope = slug ? `__${slug}` : ''
+}
+
+function scoped(key) {
+  return key + scope
+}
+
+// Reprise unique des données enregistrées avant l'arrivée des profils, vers le
+// premier profil ouvert. L'ancienne clé est conservée telle quelle.
+const MIGRATED_KEY = 'suivi_profil_reprise_faite'
+
+function adoptLegacy(key) {
+  if (!scope) return null
+  try {
+    if (localStorage.getItem(MIGRATED_KEY)) return null
+    const legacy = localStorage.getItem(key)
+    if (!legacy) return null
+    localStorage.setItem(scoped(key), legacy)
+    return legacy
+  } catch {
+    return null
+  }
+}
+
+export function markLegacyAdopted() {
+  try {
+    localStorage.setItem(MIGRATED_KEY, new Date().toISOString())
+  } catch {
+    /* rien à faire */
+  }
+}
+
 export const STORAGE_KEY = 'suivi_charges_v5'
 // v1 : un seul schéma par exercice (scheme + history à la racine).
 // v2 : plusieurs formats, mais le RM était une valeur isolée de l'exercice.
@@ -99,7 +137,7 @@ function migrateV4toV5(list) {
 
 export function loadExercises() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(scoped(STORAGE_KEY)) || adoptLegacy(STORAGE_KEY)
     if (raw) {
       const parsed = normalize(JSON.parse(raw))
       if (parsed) return parsed
@@ -131,7 +169,7 @@ export function loadExercises() {
 
 export function saveExercises(exercises) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(exercises))
+    localStorage.setItem(scoped(STORAGE_KEY), JSON.stringify(exercises))
   } catch (err) {
     console.warn('Écriture localStorage impossible.', err)
   }
@@ -147,7 +185,7 @@ export const IMPORTED_KEY = 'suivi_programmes_importes_v1'
 
 export function loadChoices() {
   try {
-    const raw = localStorage.getItem(CHOICES_KEY)
+    const raw = localStorage.getItem(scoped(CHOICES_KEY)) || adoptLegacy(CHOICES_KEY)
     if (!raw) return {}
     const parsed = JSON.parse(raw)
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
@@ -160,7 +198,7 @@ export function loadChoices() {
 
 export function saveChoices(choices) {
   try {
-    localStorage.setItem(CHOICES_KEY, JSON.stringify(choices))
+    localStorage.setItem(scoped(CHOICES_KEY), JSON.stringify(choices))
   } catch (err) {
     console.warn('Écriture des choix de programme impossible.', err)
   }
@@ -170,7 +208,7 @@ export function saveChoices(choices) {
 // par parseImport(), on se contente ici de relire le tableau.
 export function loadImportedPrograms() {
   try {
-    const raw = localStorage.getItem(IMPORTED_KEY)
+    const raw = localStorage.getItem(scoped(IMPORTED_KEY)) || adoptLegacy(IMPORTED_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
@@ -185,7 +223,7 @@ export function loadImportedPrograms() {
 
 export function saveImportedPrograms(programs) {
   try {
-    localStorage.setItem(IMPORTED_KEY, JSON.stringify(programs))
+    localStorage.setItem(scoped(IMPORTED_KEY), JSON.stringify(programs))
   } catch (err) {
     console.warn('Écriture des programmes importés impossible.', err)
   }

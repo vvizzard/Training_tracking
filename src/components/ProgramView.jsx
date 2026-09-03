@@ -182,7 +182,7 @@ function Block({ block, blockIndex, programId, dayKey, ...rest }) {
 
 export default function ProgramView({
   exercises,
-  imported,
+  overrides,
   date,
   onDateChange,
   choices,
@@ -193,7 +193,7 @@ export default function ProgramView({
     () => new Map(exercises.map((e) => [e.name, e])),
     [exercises]
   )
-  const found = findProgramDay(date, imported)
+  const found = findProgramDay(date, overrides)
 
   if (!found) {
     return (
@@ -233,6 +233,9 @@ export default function ProgramView({
       <section className="card prog-head">
         <h2 className="prog-day-title">
           {day.title}
+          {program.source === 'profil' && (
+            <span className="prog-badge">profil</span>
+          )}
           {program.source === 'import' && (
             <span className="prog-badge">importé</span>
           )}
@@ -259,8 +262,8 @@ export default function ProgramView({
 }
 
 // Barre de navigation par date, affichée dans l'en-tête.
-export function ProgramDateNav({ date, onDateChange, imported }) {
-  const found = findProgramDay(date, imported)
+export function ProgramDateNav({ date, onDateChange, overrides }) {
+  const found = findProgramDay(date, overrides)
   return (
     <div className="date-nav">
       <button

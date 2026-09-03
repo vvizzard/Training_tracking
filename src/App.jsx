@@ -1,23 +1,43 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Dumbbell, Plus, Search, Upload, X } from 'lucide-react'
+import { CalendarDays, Dumbbell, Plus, Search, Upload, UserRound, X } from 'lucide-react'
 import ExerciseList from './components/ExerciseList.jsx'
 import ExerciseDetail from './components/ExerciseDetail.jsx'
 import AddExerciseModal from './components/AddExerciseModal.jsx'
 import ProgramView, { ProgramDateNav } from './components/ProgramView.jsx'
 import ImportProgramModal from './components/ImportProgramModal.jsx'
+import ProfileGate from './components/ProfileGate.jsx'
 import { findProgramDay } from './program.js'
+import { ensureExercisesFor } from './programSync.js'
+import {
+  clearActiveProfile,
+  fetchProfile,
+  loadActiveProfile,
+  loadProfileCache,
+  saveActiveProfile,
+} from './profile.js'
 import {
   loadChoices,
   loadExercises,
   loadImportedPrograms,
+  markLegacyAdopted,
   saveChoices,
   saveExercises,
   saveImportedPrograms,
+  setStorageScope,
 } from './storage.js'
 import { fmtDateWeekday, newId, searchable, todayISO, ZONES } from './utils.js'
 
+// Le cloisonnement par profil doit être en place avant la première lecture du
+// stockage, donc avant le premier rendu.
+const initialProfile = loadActiveProfile()
+setStorageScope(initialProfile?.slug || '')
+
 export default function App() {
   const [exercises, setExercises] = useState(loadExercises)
+  const [profile, setProfile] = useState(initialProfile)
+  const [profilePrograms, setProfilePrograms] = useState(
+    () => loadProfileCache(initialProfile?.slug)?.programs || []
+  )
   const [choices, setChoices] = useState(loadChoices)
   const [imported, setImported] = useState(loadImportedPrograms)
   const [importOpen, setImportOpen] = useState(false)
@@ -26,6 +46,33 @@ export default function App() {
   const [modalOpen, setModalOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [date, setDate] = useState(todayISO)
+
+  // La reprise des données d'avant les profils n'a lieu qu'une fois, après les
+  // premières lectures du stockage.
+  useEffect(() => {
+    if (initialProfile?.slug) markLegacyAdopted()
+  }, [])
+
+  // Le fichier du profil est relu à chaque ouverture : modifier le JSON dans le
+  // dépôt suffit à mettre le programme à jour sur tous les appareils.
+  useEffect(() => {
+    const slug = profile?.slug
+    if (!slug) return
+    let cancelled = false
+    fetchProfile(slug).then((result) => {
+      if (cancelled || !result.ok) return
+      setProfilePrograms(result.programs)
+      setExercises((list) => ensureExercisesFor(result.programs, list).exercises)
+      if (result.label && result.label !== profile.label) {
+        const next = { slug, label: result.label }
+        saveActiveProfile(next)
+        setProfile(next)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [profile?.slug])
 
   // Sauvegarde automatique à chaque changement.
   useEffect(() => {
@@ -93,6 +140,9 @@ export default function App() {
       const ids = new Set(programs.map((p) => p.id))
       return [...list.filter((p) => !ids.has(p.id)), ...programs]
     })
+    // Les exercices et déclinaisons cités mais absents sont créés, sans quoi la
+    // charge du jour n'aurait nulle part où être enregistrée.
+    setExercises((list) => ensureExercisesFor(programs, list).exercises)
     setImportOpen(false)
     setView('programme')
     setDate(programs[0].start)
@@ -101,6 +151,32 @@ export default function App() {
   const removeImported = useCallback((id) => {
     setImported((list) => list.filter((p) => p.id !== id))
   }, [])
+
+  // Programmes du profil d'abord, imports manuels ensuite : ces derniers
+  // l'emportent, pour qu'une action explicite ne soit pas écrasée par la
+  // récupération du fichier de profil.
+  const overrides = useMemo(
+    () => [
+      ...profilePrograms.map((p) => ({ ...p, source: 'profil' })),
+      ...imported.map((p) => ({ ...p, source: 'import' })),
+    ],
+    [profilePrograms, imported]
+  )
+
+  if (!profile) {
+    return (
+      <ProfileGate
+        onOpen={(next) => {
+          saveActiveProfile(next)
+          window.location.reload()
+        }}
+        onSkip={() => {
+          saveActiveProfile({ slug: '', label: '' })
+          window.location.reload()
+        }}
+      />
+    )
+  }
 
   // La fiche d'un exercice se superpose à l'onglet courant : le retour ramène
   // donc sur la liste ou sur le programme, selon l'endroit d'où on l'a ouverte.
@@ -118,7 +194,7 @@ export default function App() {
   }
 
   const isProgram = view === 'programme'
-  const programDay = isProgram ? findProgramDay(date, imported) : null
+  const programDay = isProgram ? findProgramDay(date, overrides) : null
 
   return (
     <div className="app">
@@ -128,7 +204,8 @@ export default function App() {
             <h1>{isProgram ? 'Programme' : 'Suivi des charges'}</h1>
             <p className="subtitle">
               {isProgram
-                ? fmtDateWeekday(date) +
+                ? (profile.slug ? `${profile.label} · ` : '') +
+                  fmtDateWeekday(date) +
                   (programDay?.day ? ` · ${programDay.day.title}` : '')
                 : query.trim()
                   ? `${filtered.length} sur ${exercises.length} exercice${
@@ -138,14 +215,28 @@ export default function App() {
             </p>
           </div>
           {isProgram ? (
-            <button
-              type="button"
-              className="btn btn-icon"
-              onClick={() => setImportOpen(true)}
-              aria-label="Importer un programme"
-            >
-              <Upload size={18} />
-            </button>
+            <>
+              <button
+                type="button"
+                className="btn btn-icon"
+                onClick={() => {
+                  clearActiveProfile()
+                  window.location.reload()
+                }}
+                aria-label="Changer de profil"
+                title={profile.slug ? `Profil : ${profile.label}` : 'Aucun profil'}
+              >
+                <UserRound size={18} />
+              </button>
+              <button
+                type="button"
+                className="btn btn-icon"
+                onClick={() => setImportOpen(true)}
+                aria-label="Importer un programme"
+              >
+                <Upload size={18} />
+              </button>
+            </>
           ) : (
             <button
               type="button"
@@ -180,7 +271,7 @@ export default function App() {
         </div>
 
         {isProgram ? (
-          <ProgramDateNav date={date} onDateChange={setDate} imported={imported} />
+          <ProgramDateNav date={date} onDateChange={setDate} overrides={overrides} />
         ) : (
           <div className="search">
             <Search size={16} className="search-icon" />
@@ -208,7 +299,7 @@ export default function App() {
       {isProgram ? (
         <ProgramView
           exercises={exercises}
-          imported={imported}
+          overrides={overrides}
           date={date}
           onDateChange={setDate}
           choices={choices}
