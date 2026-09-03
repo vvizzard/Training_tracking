@@ -143,6 +143,7 @@ export function saveExercises(exercises) {
 // ---------------------------------------------------------------------------
 
 export const CHOICES_KEY = 'suivi_programme_choix_v1'
+export const IMPORTED_KEY = 'suivi_programmes_importes_v1'
 
 export function loadChoices() {
   try {
@@ -162,5 +163,30 @@ export function saveChoices(choices) {
     localStorage.setItem(CHOICES_KEY, JSON.stringify(choices))
   } catch (err) {
     console.warn('Écriture des choix de programme impossible.', err)
+  }
+}
+
+// Programmes importés au format JSON. Déjà validés et normalisés à l'import
+// par parseImport(), on se contente ici de relire le tableau.
+export function loadImportedPrograms() {
+  try {
+    const raw = localStorage.getItem(IMPORTED_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (p) => p && typeof p.id === 'string' && Array.isArray(p.days) && p.days.length
+    )
+  } catch (err) {
+    console.warn('Lecture des programmes importés impossible.', err)
+    return []
+  }
+}
+
+export function saveImportedPrograms(programs) {
+  try {
+    localStorage.setItem(IMPORTED_KEY, JSON.stringify(programs))
+  } catch (err) {
+    console.warn('Écriture des programmes importés impossible.', err)
   }
 }

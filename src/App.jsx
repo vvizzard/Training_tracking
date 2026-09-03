@@ -1,21 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Dumbbell, Plus, Search, X } from 'lucide-react'
+import { CalendarDays, Dumbbell, Plus, Search, Upload, X } from 'lucide-react'
 import ExerciseList from './components/ExerciseList.jsx'
 import ExerciseDetail from './components/ExerciseDetail.jsx'
 import AddExerciseModal from './components/AddExerciseModal.jsx'
 import ProgramView, { ProgramDateNav } from './components/ProgramView.jsx'
+import ImportProgramModal from './components/ImportProgramModal.jsx'
 import { findProgramDay } from './program.js'
 import {
   loadChoices,
   loadExercises,
+  loadImportedPrograms,
   saveChoices,
   saveExercises,
+  saveImportedPrograms,
 } from './storage.js'
 import { fmtDateWeekday, newId, searchable, todayISO, ZONES } from './utils.js'
 
 export default function App() {
   const [exercises, setExercises] = useState(loadExercises)
   const [choices, setChoices] = useState(loadChoices)
+  const [imported, setImported] = useState(loadImportedPrograms)
+  const [importOpen, setImportOpen] = useState(false)
   const [view, setView] = useState('exercices')
   const [selectedId, setSelectedId] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -30,6 +35,10 @@ export default function App() {
   useEffect(() => {
     saveChoices(choices)
   }, [choices])
+
+  useEffect(() => {
+    saveImportedPrograms(imported)
+  }, [imported])
 
   const selected = useMemo(
     () => exercises.find((e) => e.id === selectedId) || null,
@@ -77,6 +86,22 @@ export default function App() {
     setChoices((c) => ({ ...c, [key]: name }))
   }, [])
 
+  // Un import remplace un programme de même identifiant, sinon s'ajoute à la
+  // fin : le plus récent l'emporte en cas de chevauchement de dates.
+  const importPrograms = useCallback((programs) => {
+    setImported((list) => {
+      const ids = new Set(programs.map((p) => p.id))
+      return [...list.filter((p) => !ids.has(p.id)), ...programs]
+    })
+    setImportOpen(false)
+    setView('programme')
+    setDate(programs[0].start)
+  }, [])
+
+  const removeImported = useCallback((id) => {
+    setImported((list) => list.filter((p) => p.id !== id))
+  }, [])
+
   // La fiche d'un exercice se superpose à l'onglet courant : le retour ramène
   // donc sur la liste ou sur le programme, selon l'endroit d'où on l'a ouverte.
   if (selected) {
@@ -93,7 +118,7 @@ export default function App() {
   }
 
   const isProgram = view === 'programme'
-  const programDay = isProgram ? findProgramDay(date) : null
+  const programDay = isProgram ? findProgramDay(date, imported) : null
 
   return (
     <div className="app">
@@ -112,7 +137,16 @@ export default function App() {
                   : `${exercises.length} exercice${exercises.length > 1 ? 's' : ''}`}
             </p>
           </div>
-          {!isProgram && (
+          {isProgram ? (
+            <button
+              type="button"
+              className="btn btn-icon"
+              onClick={() => setImportOpen(true)}
+              aria-label="Importer un programme"
+            >
+              <Upload size={18} />
+            </button>
+          ) : (
             <button
               type="button"
               className="btn btn-accent btn-icon"
@@ -146,7 +180,7 @@ export default function App() {
         </div>
 
         {isProgram ? (
-          <ProgramDateNav date={date} onDateChange={setDate} />
+          <ProgramDateNav date={date} onDateChange={setDate} imported={imported} />
         ) : (
           <div className="search">
             <Search size={16} className="search-icon" />
@@ -174,6 +208,7 @@ export default function App() {
       {isProgram ? (
         <ProgramView
           exercises={exercises}
+          imported={imported}
           date={date}
           onDateChange={setDate}
           choices={choices}
@@ -188,6 +223,16 @@ export default function App() {
         <AddExerciseModal
           onClose={() => setModalOpen(false)}
           onSubmit={addExercise}
+        />
+      )}
+
+      {importOpen && (
+        <ImportProgramModal
+          exercises={exercises}
+          imported={imported}
+          onClose={() => setImportOpen(false)}
+          onImport={importPrograms}
+          onRemove={removeImported}
         />
       )}
     </div>

@@ -1043,12 +1043,35 @@ export const PROGRAMS = [
 export const PROGRAM_START = PROGRAMS[0].start
 export const PROGRAM_END = PROGRAMS[PROGRAMS.length - 1].end
 
-// Retourne { program, index, day } pour une date ISO, ou null hors période.
-export function findProgramDay(iso) {
+// Retourne { program, day, dayKey } pour une date ISO, ou null si aucun
+// programme ne la couvre. `day` vaut null pour un jour de repos.
+//
+// Les programmes importés sont consultés d'abord, du plus récent au plus
+// ancien : un import couvrant une date déjà prévue par un programme intégré
+// prend la main. `dayKey` identifie la journée dans les clés de choix — un
+// index pour les programmes intégrés, la date pour les importés, qui sont
+// datés journée par journée.
+export function findProgramDay(iso, imported = []) {
+  for (let i = imported.length - 1; i >= 0; i -= 1) {
+    const program = imported[i]
+    if (iso < program.start || iso > program.end) continue
+    const day = program.days.find((d) => d.date === iso)
+    if (!day) continue
+    return {
+      program: { ...program, source: 'import' },
+      day: day.rest ? null : day,
+      dayKey: iso,
+    }
+  }
+
   for (const program of PROGRAMS) {
     if (iso >= program.start && iso <= program.end) {
       const index = dayDiff(program.start, iso)
-      return { program, index, day: program.days[index] || null }
+      return {
+        program: { ...program, source: 'builtin' },
+        day: program.days[index] || null,
+        dayKey: `i${index}`,
+      }
     }
   }
   return null
@@ -1057,6 +1080,6 @@ export function findProgramDay(iso) {
 // Préfixe de persistance des choix d'un bloc. La clé complète d'un mouvement
 // est `${blockKey(...)}.m${index}` : stable tant que les données de programme
 // ne sont pas réordonnées.
-export function blockKey(programId, dayIndex, blockIndex) {
-  return `${programId}.d${dayIndex}.b${blockIndex}`
+export function blockKey(programId, dayKey, blockIndex) {
+  return `${programId}.d${dayKey}.b${blockIndex}`
 }

@@ -2,7 +2,7 @@
 
 Petite web app de suivi de charges en musculation : liste d'exercices regroupés par zone
 musculaire et filtrables, RM, déclinaisons de séries/reps avec leur RPE, courbe d'évolution des
-charges dans le temps, et une page **Programme** consultable par date. Aucun backend, tout est
+charges dans le temps, et une page **Programme** consultable par date, avec import JSON. Aucun backend, tout est
 stocké dans le `localStorage` du navigateur sous la clé `suivi_charges_v5`.
 
 Stack : Vite + React (JavaScript), [Recharts](https://recharts.org) pour le graphique,
@@ -94,6 +94,97 @@ l'exercice retenu n'a pas ce schéma exact — cas d'un remplacement, `4 x max p
 > n'est pas stocké dans le `localStorage` et n'est pas modifiable depuis l'interface. Les
 > remarques sont des résumés en français des notes du coach, pas leur reprise mot pour mot.
 
+## Importer un programme (JSON)
+
+Le bouton d'import de la page Programme accepte un fichier `.json` ou du JSON collé. Le
+contenu est validé avant enregistrement : tant qu'il reste une erreur, l'import est refusé et
+les problèmes sont listés un par un avec leur chemin (`programme.days[2].blocks[0] : …`).
+
+Un programme est **une liste de journées datées**. C'est ce qui permet d'importer
+indifféremment **un jour, une semaine ou un mois** : il n'y a qu'à mettre autant d'entrées que
+de jours couverts. Une entrée sans bloc, ou avec `"rest": true`, est un jour de repos.
+
+```json
+{
+  "format": "suivi-charges/programme@1",
+  "label": "Bloc 8 · semaine 1/4",
+  "focus": "Reprise en volume.",
+  "days": [
+    {
+      "date": "2026-09-07",
+      "title": "Séance 1 · Push",
+      "focus": "Pectoraux, épaules, triceps",
+      "blocks": [
+        {
+          "kind": "warmup",
+          "intro": "3 à 5 min de cardio",
+          "lines": ["15 Band Pull Apart"],
+          "rounds": "2-3 tours",
+          "rest": "1 min"
+        },
+        {
+          "n": 1,
+          "exercise": "Bench Press",
+          "sets": "4x8-10",
+          "rpe": "8",
+          "rest": "2-3 min",
+          "notes": "Garder 5 kg de réserve.",
+          "links": [{ "label": "Démo", "url": "https://youtu.be/xxxx" }]
+        },
+        {
+          "n": 2,
+          "title": "Squat au choix",
+          "choices": ["Squat", "Leg Press", "Hack Squat"],
+          "sets": [{ "reps": "6x4", "rpe": "9" }]
+        },
+        {
+          "n": 3,
+          "kind": "superset",
+          "rounds": "3 tours",
+          "movements": [
+            { "match": "Lateral Raise", "sets": [{ "reps": "12", "scheme": "3x10-12", "rpe": "Échec" }] }
+          ]
+        }
+      ]
+    },
+    { "date": "2026-09-08", "rest": true }
+  ]
+}
+```
+
+| Champ | Rôle |
+| --- | --- |
+| `label`, `focus` | titre et intention du programme (facultatifs) |
+| `days[].date` | **requis**, `AAAA-MM-JJ` ; une date par journée, pas de doublon |
+| `days[].rest` | `true` pour un jour de repos (équivalent à ne pas mettre de bloc) |
+| `blocks[].kind` | `single` (défaut), `warmup`, `superset`, `finisher` |
+| `blocks[].n` | numéro affiché dans la pastille |
+| `blocks[].rounds`, `rest`, `notes` | nombre de tours, temps de repos, remarques |
+| `movements[].match` | nom **exact** d'un exercice de la liste, d'où vient la charge |
+| `movements[].choices` | plusieurs exercices : un sélecteur s'affiche, le choix est mémorisé |
+| `sets[].reps` | série affichée (`4x8-10`) |
+| `sets[].scheme` | déclinaison à utiliser pour la charge, si son libellé diffère de `reps` |
+| `sets[].rpe`, `hint` | RPE (`8`, `9-10`, `Échec`, `Dur`) et précision courte (`lourd`) |
+| `links[]` | `{ "label", "url" }` ; seuls `http` et `https` sont acceptés |
+
+Raccourcis tolérés, pour que le JSON reste écrivable à la main :
+
+- `"sets": "4x8-10"` ou `"sets": ["1x5", "4x6-8"]` au lieu d'un tableau d'objets ;
+- `"notes": "une seule remarque"` au lieu d'un tableau ;
+- `"links": ["https://…"]` au lieu d'objets ;
+- un bloc peut porter directement `exercise` / `choices` / `sets` / `rpe` au lieu d'un tableau
+  `movements` à un seul élément ;
+- un mouvement peut être une simple chaîne, prise comme nom d'exercice ;
+- le fichier peut contenir un seul programme, un tableau de programmes, ou
+  `{ "programs": [...] }`.
+
+Un exercice cité mais absent de la liste n'empêche pas l'import : il est signalé avant
+validation, puis affiché sans charge dans la séance.
+
+Les programmes importés sont enregistrés sous `suivi_programmes_importes_v1` et **prennent la
+main sur les programmes intégrés aux mêmes dates**, le plus récemment importé gagnant en cas de
+chevauchement. La liste des imports, avec suppression, est dans la même fenêtre.
+
 ## Données
 
 Un exercice porte un nom, une zone musculaire, une note, et une liste de **formats**
@@ -151,6 +242,7 @@ du navigateur :
   localStorage.removeItem('suivi_charges_' + v)
 )
 localStorage.removeItem('suivi_programme_choix_v1')
+localStorage.removeItem('suivi_programmes_importes_v1')
 ```
 
 Les données étant locales au navigateur, elles ne sont ni synchronisées entre appareils ni

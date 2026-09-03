@@ -141,10 +141,10 @@ function WarmupBlock({ block }) {
   )
 }
 
-function Block({ block, blockIndex, programId, dayIndex, ...rest }) {
+function Block({ block, blockIndex, programId, dayKey, ...rest }) {
   if (block.kind === 'warmup') return <WarmupBlock block={block} />
 
-  const key = blockKey(programId, dayIndex, blockIndex)
+  const key = blockKey(programId, dayKey, blockIndex)
   const label =
     block.title || (block.kind === 'superset' ? 'Superset' : null)
 
@@ -182,6 +182,7 @@ function Block({ block, blockIndex, programId, dayIndex, ...rest }) {
 
 export default function ProgramView({
   exercises,
+  imported,
   date,
   onDateChange,
   choices,
@@ -192,7 +193,7 @@ export default function ProgramView({
     () => new Map(exercises.map((e) => [e.name, e])),
     [exercises]
   )
-  const found = findProgramDay(date)
+  const found = findProgramDay(date, imported)
 
   if (!found) {
     return (
@@ -211,7 +212,7 @@ export default function ProgramView({
     )
   }
 
-  const { program, index, day } = found
+  const { program, dayKey, day } = found
 
   if (!day) {
     return (
@@ -230,9 +231,14 @@ export default function ProgramView({
   return (
     <div className="prog">
       <section className="card prog-head">
-        <h2 className="prog-day-title">{day.title}</h2>
-        <p className="prog-day-focus">{day.focus}</p>
-        <p className="prog-program-focus">{program.focus}</p>
+        <h2 className="prog-day-title">
+          {day.title}
+          {program.source === 'import' && (
+            <span className="prog-badge">importé</span>
+          )}
+        </h2>
+        {day.focus && <p className="prog-day-focus">{day.focus}</p>}
+        {program.focus && <p className="prog-program-focus">{program.focus}</p>}
       </section>
 
       {day.blocks.map((block, i) => (
@@ -241,7 +247,7 @@ export default function ProgramView({
           block={block}
           blockIndex={i}
           programId={program.id}
-          dayIndex={index}
+          dayKey={dayKey}
           byName={byName}
           choices={choices}
           onChoice={onChoice}
@@ -253,8 +259,8 @@ export default function ProgramView({
 }
 
 // Barre de navigation par date, affichée dans l'en-tête.
-export function ProgramDateNav({ date, onDateChange }) {
-  const found = findProgramDay(date)
+export function ProgramDateNav({ date, onDateChange, imported }) {
+  const found = findProgramDay(date, imported)
   return (
     <div className="date-nav">
       <button
