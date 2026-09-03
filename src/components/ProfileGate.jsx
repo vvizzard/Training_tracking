@@ -1,31 +1,47 @@
 import { useState } from 'react'
-import { AlertTriangle, LogIn } from 'lucide-react'
-import { fetchProfile, profileSlug } from '../profile.js'
+import { AlertTriangle, Copy, Link2, LogIn } from 'lucide-react'
+import { fetchProfile, resolveSource, shareLink } from '../profile.js'
 
-// Écran d'entrée : la personne saisit le nom de son profil, l'app va chercher
-// le fichier correspondant sur le serveur. C'est ce qui rend le programme
-// identique d'un appareil à l'autre.
-export default function ProfileGate({ onOpen, onSkip }) {
-  const [name, setName] = useState('')
+// Écran d'entrée. Un seul champ, qui accepte indifféremment un nom de profil
+// (fichier servi avec le site) ou une adresse https vers n'importe quel
+// hébergeur de JSON.
+export default function ProfileGate({ current, onOpen, onSkip, onCancel }) {
+  const [value, setValue] = useState(current?.url || current?.slug || '')
   const [busy, setBusy] = useState(false)
   const [errors, setErrors] = useState([])
+  const [copied, setCopied] = useState(false)
 
   async function submit(e) {
     e.preventDefault()
-    const slug = profileSlug(name)
-    if (!slug) {
-      setErrors(['Saisis un nom de profil.'])
+    const source = resolveSource(value)
+    if (!source) {
+      setErrors(['Saisis un nom de profil ou une adresse https.'])
       return
     }
     setBusy(true)
     setErrors([])
-    const result = await fetchProfile(slug)
+    const result = await fetchProfile(source)
     setBusy(false)
     if (!result.ok) {
       setErrors(result.errors)
       return
     }
-    onOpen({ slug, label: result.label }, result.programs, result.offline)
+    onOpen(
+      { slug: result.slug, label: result.label, url: result.url || '' },
+      result.programs
+    )
+  }
+
+  async function copyLink() {
+    const link = shareLink(current.url ? { url: current.url } : { slug: current.slug })
+    try {
+      await navigator.clipboard.writeText(link)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Presse-papiers refusé : on retombe sur une sélection manuelle.
+      window.prompt('Copie ce lien :', link)
+    }
   }
 
   return (
@@ -33,21 +49,21 @@ export default function ProfileGate({ onOpen, onSkip }) {
       <div className="gate-card card">
         <h1 className="gate-title">Suivi des charges</h1>
         <p className="gate-sub">
-          Saisis le nom de ton profil pour ouvrir ton programme. Il est le même
-          sur tous tes appareils.
+          Ouvre ton programme avec son nom, ou avec le lien de l’endroit où il est
+          hébergé. Il sera le même sur tous tes appareils.
         </p>
 
         <form onSubmit={submit} className="form">
           <label className="field">
-            <span>Nom du profil</span>
+            <span>Nom du profil, ou lien https</span>
             <input
               autoFocus
-              value={name}
+              value={value}
               onChange={(e) => {
-                setName(e.target.value)
+                setValue(e.target.value)
                 setErrors([])
               }}
-              placeholder="zacharie"
+              placeholder="zacharie — ou https://api.npoint.io/…"
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck="false"
@@ -72,14 +88,28 @@ export default function ProfileGate({ onOpen, onSkip }) {
           </button>
         </form>
 
-        <button type="button" className="btn btn-block btn-subtle" onClick={onSkip}>
-          Continuer sans profil
-        </button>
+        {current?.slug && (
+          <button type="button" className="btn btn-block btn-subtle" onClick={copyLink}>
+            {copied ? <Copy size={15} /> : <Link2 size={15} />}{' '}
+            {copied ? 'Lien copié' : 'Copier le lien d’ouverture'}
+          </button>
+        )}
+
+        <div className="gate-actions">
+          {current && (
+            <button type="button" className="btn" onClick={onCancel}>
+              Annuler
+            </button>
+          )}
+          <button type="button" className="btn btn-subtle" onClick={onSkip}>
+            Continuer sans profil
+          </button>
+        </div>
 
         <p className="hint">
-          Sans profil, tu gardes le programme intégré et tes données restent
-          propres à ce navigateur. Un nom de profil n’est pas un mot de passe :
-          les fichiers de programme sont publics.
+          Un lien d’ouverture donne accès au programme à qui l’a : garde-le pour
+          toi, comme un lien de partage. Ce n’est pas un mot de passe. Tes charges,
+          elles, ne quittent jamais ton navigateur.
         </p>
       </div>
     </div>

@@ -118,6 +118,35 @@ d'ouvrir le profil, ce qui évite qu'un fichier renommé passe inaperçu.
 partout à la prochaine ouverture — le fichier est relu à chaque ouverture, et sa
 dernière version est gardée en cache pour rester utilisable hors ligne.
 
+### Héberger le JSON ailleurs que dans le dépôt
+
+Le même champ accepte une **adresse https complète** à la place d'un nom. Le JSON
+peut alors vivre chez n'importe quel hébergeur qui renvoie du JSON et autorise la
+lecture depuis un autre site (`Access-Control-Allow-Origin`) : npoint.io, qui
+s'édite directement dans le navigateur, Cloudflare R2, Netlify Drop…
+
+```
+https://api.npoint.io/a7f3c91e4b2d8065
+                      └── clé aléatoire, indevinable
+```
+
+Modifier le JSON chez l'hébergeur suffit : pas de commit, pas de déploiement, la
+mise à jour est visible partout à la prochaine ouverture. L'adresse est
+mémorisée, et la dernière version reçue reste en cache pour l'usage hors ligne.
+
+Le bouton **« Copier le lien d'ouverture »**, dans l'écran de profil, fabrique une
+adresse `…/#p=<url encodée>` : l'ouvrir sur un autre appareil configure le profil
+d'un seul geste, sans rien retaper. Un lien `#n=<nom>` fait de même pour un
+fichier du dépôt.
+
+> **Ce que vaut cette sécurité.** Une URL contenant une clé aléatoire est
+> indevinable, mais partageable : qui l'obtient accède au programme. C'est le
+> modèle du lien de partage, pas celui d'un mot de passe — une app statique ne
+> peut rien garder de secret, tout ce qu'elle va chercher est visible dans
+> l'onglet réseau. Ne rien y mettre de sensible, ne pas publier le lien, et le
+> régénérer chez l'hébergeur s'il a fuité. Une vraie protection par compte
+> demanderait un service avec authentification et règles d'accès côté serveur.
+
 Les **données sont cloisonnées par profil** : les clés de `localStorage` sont
 suffixées par le nom (`suivi_charges_v5__zacharie`), donc deux profils ouverts sur
 le même navigateur gardent chacun leurs charges. Les données enregistrées avant

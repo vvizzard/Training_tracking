@@ -9,10 +9,11 @@ import ProfileGate from './components/ProfileGate.jsx'
 import { findProgramDay } from './program.js'
 import { ensureExercisesFor } from './programSync.js'
 import {
-  clearActiveProfile,
+  clearHash,
   fetchProfile,
   loadActiveProfile,
   loadProfileCache,
+  readHashSource,
   saveActiveProfile,
 } from './profile.js'
 import {
@@ -32,9 +33,15 @@ import { fmtDateWeekday, newId, searchable, todayISO, ZONES } from './utils.js'
 const initialProfile = loadActiveProfile()
 setStorageScope(initialProfile?.slug || '')
 
+// Un lien d'ouverture partagé désigne un programme dans le fragment d'URL. Il
+// est résolu avant toute chose, et prend le pas sur le profil enregistré.
+const hashSource = readHashSource()
+
 export default function App() {
   const [exercises, setExercises] = useState(loadExercises)
   const [profile, setProfile] = useState(initialProfile)
+  const [gateOpen, setGateOpen] = useState(false)
+  const [resolvingLink, setResolvingLink] = useState(Boolean(hashSource))
   const [profilePrograms, setProfilePrograms] = useState(
     () => loadProfileCache(initialProfile?.slug)?.programs || []
   )
@@ -53,18 +60,54 @@ export default function App() {
     if (initialProfile?.slug) markLegacyAdopted()
   }, [])
 
+  // Ouverture par lien partagé : on résout, on enregistre, puis on recharge pour
+  // repartir sur le bon cloisonnement de données.
+  const openFromLink = useCallback((source) => {
+    setResolvingLink(true)
+    fetchProfile(source).then((result) => {
+      clearHash()
+      if (!result.ok) {
+        setResolvingLink(false)
+        return
+      }
+      saveActiveProfile({
+        slug: result.slug,
+        label: result.label,
+        url: result.url || '',
+      })
+      window.location.reload()
+    })
+  }, [])
+
+  useEffect(() => {
+    if (hashSource) openFromLink(hashSource)
+  }, [openFromLink])
+
+  // Un lien collé dans un onglet déjà ouvert ne change que le fragment : le
+  // navigateur ne recharge rien, il faut donc écouter l'événement.
+  useEffect(() => {
+    const onHashChange = () => {
+      const source = readHashSource()
+      if (source) openFromLink(source)
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [openFromLink])
+
   // Le fichier du profil est relu à chaque ouverture : modifier le JSON dans le
   // dépôt suffit à mettre le programme à jour sur tous les appareils.
   useEffect(() => {
     const slug = profile?.slug
-    if (!slug) return
+    if (!slug || resolvingLink) return
     let cancelled = false
-    fetchProfile(slug).then((result) => {
+    // Le nom est transmis même pour une source distante : il sert à retrouver
+    // la version en cache si le réseau est absent.
+    fetchProfile(profile.url ? { url: profile.url, slug } : { slug }).then((result) => {
       if (cancelled || !result.ok) return
       setProfilePrograms(result.programs)
       setExercises((list) => ensureExercisesFor(result.programs, list).exercises)
       if (result.label && result.label !== profile.label) {
-        const next = { slug, label: result.label }
+        const next = { slug, label: result.label, url: profile.url || '' }
         saveActiveProfile(next)
         setProfile(next)
       }
@@ -72,7 +115,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [profile?.slug])
+  }, [profile?.slug, profile?.url, resolvingLink])
 
   // Sauvegarde automatique à chaque changement.
   useEffect(() => {
@@ -163,9 +206,18 @@ export default function App() {
     [profilePrograms, imported]
   )
 
-  if (!profile) {
+  if (resolvingLink) {
+    return (
+      <div className="gate">
+        <p className="gate-loading">Ouverture du programme partagé…</p>
+      </div>
+    )
+  }
+
+  if (!profile || gateOpen) {
     return (
       <ProfileGate
+        current={profile}
         onOpen={(next) => {
           saveActiveProfile(next)
           window.location.reload()
@@ -174,6 +226,7 @@ export default function App() {
           saveActiveProfile({ slug: '', label: '' })
           window.location.reload()
         }}
+        onCancel={() => setGateOpen(false)}
       />
     )
   }
@@ -219,10 +272,7 @@ export default function App() {
               <button
                 type="button"
                 className="btn btn-icon"
-                onClick={() => {
-                  clearActiveProfile()
-                  window.location.reload()
-                }}
+                onClick={() => setGateOpen(true)}
                 aria-label="Changer de profil"
                 title={profile.slug ? `Profil : ${profile.label}` : 'Aucun profil'}
               >
