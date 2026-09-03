@@ -91,6 +91,22 @@ export function currentLoad(history) {
   return h.length ? h[h.length - 1].load : null
 }
 
+// Charge à retenir pour une date donnée, dans la page Programme :
+//   - le point enregistré ce jour-là, s'il existe (`logged`) ;
+//   - sinon le dernier point antérieur, à titre de repère ;
+//   - sinon, faute de mieux, le point le plus récent connu.
+export function loadForDate(history, date) {
+  const sorted = sortHistory(history)
+  if (!sorted.length) return { value: null, logged: false }
+
+  const exact = sorted.find((p) => p.date === date)
+  if (exact) return { value: exact.load, logged: true }
+
+  const before = [...sorted].reverse().find((p) => p.date < date)
+  const fallback = before || sorted[sorted.length - 1]
+  return { value: fallback.load, logged: false }
+}
+
 // Delta = dernier point - premier point.
 export function loadDelta(history) {
   const h = sortHistory(history)

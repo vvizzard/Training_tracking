@@ -83,8 +83,25 @@ finisher, avec pour chaque mouvement :
 - les **liens vidéo** fournis par le programme ;
 - les **remarques** du coach, résumées en français.
 
-Un lien « Ouvrir la fiche » mène à la fiche de l'exercice pour y enregistrer la charge du jour ;
-le retour ramène sur la même date du programme.
+### Dérouler et enregistrer depuis la séance
+
+Chaque ligne de série est cliquable :
+
+- **la partie gauche** (`4x8-10 · RPE 8`) déplie toutes les déclinaisons de l'exercice avec leur
+  charge, pour voir d'un coup ce qu'on soulève sur les autres formats ;
+- **la charge à droite**, ou le `—` s'il n'y en a pas, ouvre un champ de saisie. La valeur est
+  enregistrée **à la date de la séance affichée**, pas à celle du jour de consultation. Vider le
+  champ efface le point.
+
+La charge affichée est celle enregistrée ce jour-là quand elle existe — repérée par un point
+vert — sinon la dernière charge connue avant cette date, en gris, à titre de repère.
+
+Un bouton **« C'est fait »** en bas de chaque bloc le replie sur son seul titre ; « Rouvrir » le
+redéploie. L'état est mémorisé par bloc et par date, sous `suivi_programme_faits_v1`, et survit
+au rechargement.
+
+Un lien « Ouvrir la fiche » mène à la fiche de l'exercice pour y voir la courbe et l'historique
+complet ; le retour ramène sur la même date du programme.
 
 La charge affichée vient de la déclinaison dont le schéma correspond à la série prescrite. Si
 l'exercice retenu n'a pas ce schéma exact — cas d'un remplacement, `4 x max prise large` contre

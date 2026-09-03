@@ -182,6 +182,7 @@ export function saveExercises(exercises) {
 
 export const CHOICES_KEY = 'suivi_programme_choix_v1'
 export const IMPORTED_KEY = 'suivi_programmes_importes_v1'
+export const DONE_KEY = 'suivi_programme_faits_v1'
 
 export function loadChoices() {
   try {
@@ -226,5 +227,27 @@ export function saveImportedPrograms(programs) {
     localStorage.setItem(scoped(IMPORTED_KEY), JSON.stringify(programs))
   } catch (err) {
     console.warn('Écriture des programmes importés impossible.', err)
+  }
+}
+
+// Blocs de séance marqués comme faits : { "<clé de bloc>": true }.
+export function loadDone() {
+  try {
+    const raw = localStorage.getItem(scoped(DONE_KEY)) || adoptLegacy(DONE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    return parsed
+  } catch (err) {
+    console.warn('Lecture des blocs faits impossible.', err)
+    return {}
+  }
+}
+
+export function saveDone(done) {
+  try {
+    localStorage.setItem(scoped(DONE_KEY), JSON.stringify(done))
+  } catch (err) {
+    console.warn('Écriture des blocs faits impossible.', err)
   }
 }

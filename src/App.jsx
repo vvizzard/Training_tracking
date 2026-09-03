@@ -18,15 +18,24 @@ import {
 } from './profile.js'
 import {
   loadChoices,
+  loadDone,
   loadExercises,
   loadImportedPrograms,
   markLegacyAdopted,
   saveChoices,
+  saveDone,
   saveExercises,
   saveImportedPrograms,
   setStorageScope,
 } from './storage.js'
-import { fmtDateWeekday, newId, searchable, todayISO, ZONES } from './utils.js'
+import {
+  fmtDateWeekday,
+  newId,
+  searchable,
+  todayISO,
+  upsertPoint,
+  ZONES,
+} from './utils.js'
 
 // Le cloisonnement par profil doit être en place avant la première lecture du
 // stockage, donc avant le premier rendu.
@@ -46,6 +55,7 @@ export default function App() {
     () => loadProfileCache(initialProfile?.slug)?.programs || []
   )
   const [choices, setChoices] = useState(loadChoices)
+  const [done, setDone] = useState(loadDone)
   const [imported, setImported] = useState(loadImportedPrograms)
   const [importOpen, setImportOpen] = useState(false)
   const [view, setView] = useState('exercices')
@@ -130,6 +140,10 @@ export default function App() {
     saveImportedPrograms(imported)
   }, [imported])
 
+  useEffect(() => {
+    saveDone(done)
+  }, [done])
+
   const selected = useMemo(
     () => exercises.find((e) => e.id === selectedId) || null,
     [exercises, selectedId]
@@ -174,6 +188,40 @@ export default function App() {
 
   const setChoice = useCallback((key, name) => {
     setChoices((c) => ({ ...c, [key]: name }))
+  }, [])
+
+  const toggleDone = useCallback((key) => {
+    setDone((d) => {
+      const next = { ...d }
+      if (next[key]) delete next[key]
+      else next[key] = true
+      return next
+    })
+  }, [])
+
+  // Charge saisie depuis le programme : elle est datée du jour de la séance
+  // affichée. Une valeur nulle efface le point de cette date.
+  const recordLoad = useCallback((exerciseId, variantId, date, load) => {
+    setExercises((list) =>
+      list.map((e) =>
+        e.id !== exerciseId
+          ? e
+          : {
+              ...e,
+              variants: e.variants.map((v) =>
+                v.id !== variantId
+                  ? v
+                  : {
+                      ...v,
+                      history:
+                        load === null
+                          ? v.history.filter((p) => p.date !== date)
+                          : upsertPoint(v.history, date, load),
+                    }
+              ),
+            }
+      )
+    )
   }, [])
 
   // Un import remplace un programme de même identifiant, sinon s'ajoute à la
@@ -355,6 +403,11 @@ export default function App() {
           choices={choices}
           onChoice={setChoice}
           onOpenExercise={setSelectedId}
+          done={done}
+          onToggleDone={toggleDone}
+          onRecordLoad={(exerciseId, variantId, load) =>
+            recordLoad(exerciseId, variantId, date, load)
+          }
         />
       ) : (
         <ExerciseList groups={groups} onSelect={setSelectedId} />
