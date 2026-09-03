@@ -47,6 +47,34 @@ export function fmtDateShort(iso) {
   return `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
 }
 
+// Toutes les dates sont manipulées en UTC pour que l'arithmétique de jours
+// ne dépende pas du fuseau ni de l'heure d'été.
+function toDate(iso) {
+  const [y, m, d] = String(iso).split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d))
+}
+
+export function addDays(iso, n) {
+  const d = toDate(iso)
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
+// Nombre de jours entre deux dates ISO (b - a).
+export function dayDiff(a, b) {
+  return Math.round((toDate(b) - toDate(a)) / 86400000)
+}
+
+// "2026-09-03" -> "jeudi 3 septembre"
+export function fmtDateWeekday(iso) {
+  return new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  }).format(toDate(iso))
+}
+
 // "2025-03-14" -> "14/03/2025"
 export function fmtDateLong(iso) {
   if (!iso || iso.length < 10) return iso || ''

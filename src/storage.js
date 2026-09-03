@@ -136,3 +136,31 @@ export function saveExercises(exercises) {
     console.warn('Écriture localStorage impossible.', err)
   }
 }
+
+// ---------------------------------------------------------------------------
+// Choix d'exercices faits sur la page Programme, stockés à part des exercices.
+// { "bloc7-s1.d0.b1.m0": "Bench Press", ... }
+// ---------------------------------------------------------------------------
+
+export const CHOICES_KEY = 'suivi_programme_choix_v1'
+
+export function loadChoices() {
+  try {
+    const raw = localStorage.getItem(CHOICES_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    return parsed
+  } catch (err) {
+    console.warn('Lecture des choix de programme impossible.', err)
+    return {}
+  }
+}
+
+export function saveChoices(choices) {
+  try {
+    localStorage.setItem(CHOICES_KEY, JSON.stringify(choices))
+  } catch (err) {
+    console.warn('Écriture des choix de programme impossible.', err)
+  }
+}

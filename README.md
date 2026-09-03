@@ -2,8 +2,8 @@
 
 Petite web app de suivi de charges en musculation : liste d'exercices regroupés par zone
 musculaire et filtrables, RM, déclinaisons de séries/reps avec leur RPE, courbe d'évolution des
-charges dans le temps. Aucun backend, tout est stocké dans le `localStorage` du navigateur sous
-la clé `suivi_charges_v5`.
+charges dans le temps, et une page **Programme** consultable par date. Aucun backend, tout est
+stocké dans le `localStorage` du navigateur sous la clé `suivi_charges_v5`.
 
 Stack : Vite + React (JavaScript), [Recharts](https://recharts.org) pour le graphique,
 [lucide-react](https://lucide.dev) pour les icônes.
@@ -65,6 +65,35 @@ déjà en devDependency), sans passer par l'action :
 npm run deploy
 ```
 
+## Page Programme
+
+Deux semaines de programme sont reconstituées dans [`src/program.js`](src/program.js) à partir
+des documents HWPO Bodybuilding — bloc 6 semaine 3/4 (du 24 au 30 août) et bloc 7 semaine 1/4
+(du 31 août au 6 septembre). Les jours d'entraînement suivent la suggestion du programme :
+lundi, mardi, mercredi, vendredi, samedi ; jeudi et dimanche sont des jours de repos.
+
+Pour chaque séance, la page affiche l'échauffement, les blocs numérotés, les supersets et le
+finisher, avec pour chaque mouvement :
+
+- les **séries conseillées** et leur RPE, et la **charge courante** tirée de la déclinaison
+  correspondante de l'exercice ;
+- un **sélecteur** quand le programme laisse le choix (« Pendulum, Belt ou Back Squat »,
+  « Landmine ou T-Bar Row »…). Le choix est mémorisé sous la clé
+  `suivi_programme_choix_v1` ;
+- les **liens vidéo** fournis par le programme ;
+- les **remarques** du coach, résumées en français.
+
+Un lien « Ouvrir la fiche » mène à la fiche de l'exercice pour y enregistrer la charge du jour ;
+le retour ramène sur la même date du programme.
+
+La charge affichée vient de la déclinaison dont le schéma correspond à la série prescrite. Si
+l'exercice retenu n'a pas ce schéma exact — cas d'un remplacement, `4 x max prise large` contre
+`4 x max` — la recherche retombe sur les reps affichées.
+
+> Le contenu des programmes est une donnée statique du code, pas une donnée utilisateur : il
+> n'est pas stocké dans le `localStorage` et n'est pas modifiable depuis l'interface. Les
+> remarques sont des résumés en français des notes du coach, pas leur reprise mot pour mot.
+
 ## Données
 
 Un exercice porte un nom, une zone musculaire, une note, et une liste de **formats**
@@ -121,6 +150,7 @@ du navigateur :
 ['v1', 'v2', 'v3', 'v4', 'v5'].forEach((v) =>
   localStorage.removeItem('suivi_charges_' + v)
 )
+localStorage.removeItem('suivi_programme_choix_v1')
 ```
 
 Les données étant locales au navigateur, elles ne sont ni synchronisées entre appareils ni

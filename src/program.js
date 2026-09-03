@@ -1,0 +1,1062 @@
+import { dayDiff } from './utils.js'
+
+// Programmes reconstitués à partir des deux documents HWPO Bodybuilding
+// (bloc 6 semaine 3/4, et bloc 7 semaine 1/4), replacés sur la semaine
+// dernière et la semaine en cours. Jours d'entraînement suggérés par le
+// programme : lundi, mardi, mercredi, vendredi, samedi.
+//
+// Les remarques sont des résumés en français des notes du coach, pas leur
+// reprise mot pour mot. Les liens vidéo sont ceux fournis par le programme.
+//
+// Structure d'un jour :
+//   { title, focus, blocks: [block, ...] }
+// Un bloc :
+//   { n, kind: 'warmup' | 'single' | 'superset' | 'finisher',
+//     title, rounds, rest, notes: [], movements: [mouvement, ...] }
+// Un mouvement :
+//   { title, match | choices, sets: [{ reps, scheme?, rpe?, hint? }],
+//     notes: [], links: [{ label, url }] }
+// `match` est le nom exact d'un exercice de la liste, `choices` la liste des
+// exercices entre lesquels choisir. `scheme` sert à retrouver la déclinaison
+// et sa charge ; il vaut `reps` par défaut.
+
+const WARMUP_PUSH = {
+  kind: 'warmup',
+  title: 'Échauffement',
+  rounds: '2-3 tours',
+  rest: '1 min',
+  intro: '3 à 5 min de cardio à effort modéré',
+  lines: [
+    '10/10 Rotating Posterior Dumbbell Press',
+    '10/10 Single Arm Dumbbell Upright Row',
+    '10/10 étirement des pectoraux à la cage',
+    '15-20 Band Pull Apart',
+  ],
+}
+
+const WARMUP_LEGS_A = {
+  kind: 'warmup',
+  title: 'Échauffement',
+  rounds: '2-3 tours',
+  rest: '1 min',
+  intro: '3 à 5 min de cardio à effort modéré',
+  lines: ['20 Glute Bridge', '10/10 Single Leg RDL', '30 s Hollow Hold'],
+}
+
+const WARMUP_LEGS_B = {
+  kind: 'warmup',
+  title: 'Échauffement',
+  rounds: '2-3 tours',
+  rest: '1 min',
+  intro: '3 à 5 min de cardio à effort modéré',
+  lines: ['10 Goblet Squat', '10/10 Single Leg Glute Bridge', '10/10 Cossack Squat'],
+}
+
+const WARMUP_PULL = {
+  kind: 'warmup',
+  title: 'Échauffement',
+  rounds: '2-3 tours',
+  rest: '1 min',
+  intro: '3 à 5 min de cardio à effort modéré',
+  lines: [
+    '10/10 étirement des dorsaux à la cage',
+    '15-20 Banded Face Pull',
+    '30 s suspension à la barre',
+  ],
+}
+
+const WARMUP_UPPER = {
+  kind: 'warmup',
+  title: 'Échauffement',
+  rounds: '2-3 tours',
+  rest: '1 min',
+  intro: '3 à 5 min de cardio à effort modéré',
+  lines: [
+    '10/10 Rotating Posterior Dumbbell Press',
+    '10/10 Rotating Anterior Dumbbell Press',
+    '10/10 étirement des pectoraux à la cage',
+    '10/10 étirement des trapèzes à la cage',
+  ],
+}
+
+// Choix d'exercices qui reviennent d'une séance à l'autre.
+const SQUAT_MACHINES = ['Squat', 'Pendulum Squat', 'Belt Squat', 'Leg Press', 'Hack Squat']
+const HAMSTRING_CURLS = [
+  'Seated Hamstring Curl',
+  'Prone Hamstring Curl',
+  'Medball Hamstring Curl',
+  'Slider Hamstring Curl',
+  'Banded Hamstring Curl',
+]
+const HORIZONTAL_ROWS = ['Bent Over Row', 'Seal Row', 'Pendlay Row']
+const CHEST_FLIES = ['Chest Fly', 'Cable Chest Fly', 'Machine Chest Fly']
+const VERTICAL_PULLS = ['Pull-Ups', 'Lat Pull Down']
+const INCLINE_PRESSES = ['Incline DB Bench Press', 'Incline Bench Press (barre)']
+
+// ---------------------------------------------------------------------------
+// Bloc 6 · semaine 3/4
+// ---------------------------------------------------------------------------
+
+const B6_S1 = {
+  title: 'Séance 1 · Push',
+  focus: 'Pectoraux, épaules, triceps',
+  blocks: [
+    WARMUP_PUSH,
+    {
+      n: 1,
+      kind: 'single',
+      rest: '2-3 min',
+      notes: [
+        'Pousser fort cette semaine, sans garder de réserve pour la suivante.',
+        'Toute variation de développé convient ; incliné de préférence, pour cibler le haut des pectoraux.',
+      ],
+      movements: [
+        {
+          title: 'Développé incliné',
+          choices: INCLINE_PRESSES,
+          sets: [
+            { reps: '1x5', rpe: '8', hint: 'lourd' },
+            { reps: '4x6-8', rpe: '8', hint: 'lourd' },
+          ],
+          links: [
+            { label: 'Haltères ou barre', url: 'https://youtu.be/ZKSIGDglKUc' },
+            { label: 'Montage sans banc incliné', url: 'https://youtu.be/xPmhAsgwAqw' },
+          ],
+        },
+      ],
+    },
+    {
+      n: 2,
+      kind: 'single',
+      rest: '2 min',
+      notes: ['Viser plus lourd, surtout avec moins de reps.', 'Lester si possible, même léger.'],
+      movements: [
+        {
+          title: 'Parallel Bar Dips',
+          match: 'Parallel Bar Dips',
+          sets: [{ reps: '4x6-8', rpe: '8' }],
+          links: [{ label: 'Bar Dips', url: 'https://youtu.be/CWY8_Aqirj0' }],
+        },
+      ],
+    },
+    {
+      n: 3,
+      kind: 'single',
+      rest: '1:30',
+      notes: [
+        'Une série de plus que la semaine dernière.',
+        'Charge qui ne fait pas mal ; monter seulement aussi haut que les épaules le permettent.',
+        'Penser à mener le mouvement avec les coudes hauts.',
+      ],
+      movements: [
+        {
+          title: 'Barbell Upright Row',
+          match: 'Upright Row (barre)',
+          sets: [{ reps: '5x10', rpe: '8' }],
+          links: [{ label: 'Barbell Upright Row', url: 'https://youtu.be/bcR7GVmNYKc' }],
+        },
+      ],
+    },
+    {
+      n: 4,
+      kind: 'single',
+      rest: '2 min',
+      notes: ['Mouvement triceps lourd de la séance : aller à l’échec.', 'Moins de reps cette semaine.'],
+      movements: [
+        {
+          title: 'Behind-the-Neck DB Triceps Extension',
+          match: 'BN DB Triceps Ext',
+          sets: [{ reps: '5x10', rpe: '9-10' }],
+          links: [{ label: 'BN DB Triceps Ext', url: 'https://youtu.be/tibgBl6g2xc' }],
+        },
+      ],
+    },
+    {
+      n: 5,
+      kind: 'superset',
+      rounds: '3 tours',
+      rest: '1:30',
+      notes: ['Les trois mouvements sont menés à l’échec.'],
+      movements: [
+        {
+          title: 'Lateral Raise',
+          match: 'Lateral Raise',
+          sets: [{ reps: '10-12', scheme: '3x10-12', rpe: 'Échec' }],
+          links: [{ label: 'Lateral Raise', url: 'https://youtube.com/shorts/0zGQ7mFhrmk' }],
+        },
+        {
+          title: 'Dumbbell Skull Crusher',
+          match: 'DB Skull Crusher',
+          sets: [{ reps: '10-15', scheme: '3x10-15', rpe: 'Échec' }],
+          links: [{ label: 'DB Skull Crusher', url: 'https://youtu.be/j9O3-zlqva8' }],
+        },
+        {
+          title: 'Dumbbell Rear Delt Fly',
+          match: 'Rear Delt Fly',
+          sets: [{ reps: '10-12', scheme: '3x10-12', rpe: 'Échec' }],
+          links: [{ label: 'Rear Delt Fly', url: 'https://youtu.be/84OwAoVBL4g' }],
+        },
+      ],
+    },
+    {
+      n: 6,
+      kind: 'finisher',
+      title: 'Finisher · Tabata',
+      rounds: '8 × 20 s effort / 10 s repos',
+      notes: ['Prendre une charge qui paraît un peu trop lourde et voir ce qui se passe.'],
+      movements: [
+        {
+          title: 'Rolling Dumbbell Triceps Extension',
+          match: 'Rolling DB Triceps Ext',
+          sets: [{ reps: 'Tabata 8x20s' }],
+          links: [{ label: 'Rolling DB Skull Crusher', url: 'https://youtu.be/vH3f4-ED_CM' }],
+        },
+      ],
+    },
+  ],
+}
+
+const B6_S2 = {
+  title: 'Séance 2 · Jambes',
+  focus: 'Quadriceps, ischios, fessiers',
+  blocks: [
+    WARMUP_LEGS_A,
+    {
+      n: 1,
+      kind: 'single',
+      rest: '2 min',
+      notes: [
+        'Pas besoin de progresser sur ce mouvement.',
+        'Placé en premier pour amener du sang dans les jambes et préparer le squat.',
+        'À défaut de machine : medball, sliders ou élastique.',
+      ],
+      movements: [
+        {
+          title: 'Hamstring Curl',
+          choices: HAMSTRING_CURLS,
+          sets: [{ reps: '4x8-12', rpe: '8' }],
+          links: [
+            { label: 'Medball', url: 'https://youtu.be/sUgZhWEG2R8' },
+            { label: 'Sliders', url: 'https://youtu.be/y5AFD1eUbdA' },
+            { label: 'Élastique', url: 'https://youtu.be/n0jmFV2y5PA' },
+          ],
+        },
+      ],
+    },
+    {
+      n: 2,
+      kind: 'single',
+      rest: '2-3 min',
+      notes: [
+        'Viser plus lourd cette semaine.',
+        'Préférer une machine si disponible : elle charge les quadriceps sans charger autant le rachis, et supprime le travail d’équilibre.',
+      ],
+      movements: [
+        { title: 'Squat', choices: SQUAT_MACHINES, sets: [{ reps: '6x4', rpe: '8-9' }] },
+      ],
+    },
+    {
+      n: 3,
+      kind: 'single',
+      rest: '2 min',
+      notes: [
+        'Pousser la charge, à traiter comme un mouvement principal.',
+        'Approche bodybuilding et non force : chercher la sensation dans les ischios.',
+      ],
+      movements: [{ title: 'Romanian Deadlift', match: 'RDL', sets: [{ reps: '5x5', rpe: '9' }] }],
+    },
+    {
+      n: 4,
+      kind: 'superset',
+      rounds: '3 tours',
+      rest: '1 min',
+      notes: [
+        'Ordre inversé cette semaine : les fentes sautées rendent les fentes haltères bien plus dures.',
+        'Haltères lourds.',
+      ],
+      movements: [
+        { title: 'Jumping Lunge', match: 'Jumping Lunge', sets: [{ reps: '20', scheme: '3x20' }] },
+        {
+          title: 'Dumbbell Walking Lunge',
+          match: 'DB Walking Lunge',
+          sets: [{ reps: '20 pas', scheme: '3x20' }],
+        },
+      ],
+    },
+  ],
+}
+
+const B6_S3 = {
+  title: 'Séance 3 · Pull',
+  focus: 'Dos, biceps',
+  blocks: [
+    WARMUP_PULL,
+    {
+      n: 1,
+      kind: 'single',
+      rest: '2 min',
+      notes: [
+        'Même charge avec une série de plus, ou plus lourd si possible.',
+        'Mouvement principal des quatre prochaines semaines : rester strict, noter les charges, monter chaque semaine.',
+      ],
+      movements: [{ title: 'Barbell Curl', match: 'BB Curl', sets: [{ reps: '5x6', rpe: '9' }] }],
+    },
+    {
+      n: 2,
+      kind: 'single',
+      rest: '2 min',
+      notes: [
+        'Viser plus lourd, l’échec est autorisé cette semaine.',
+        'Ni trop léger, ni ego lifting : trouver le milieu.',
+      ],
+      movements: [
+        { title: 'Bent Over Barbell Row', choices: HORIZONTAL_ROWS, sets: [{ reps: '5x6', rpe: '10' }] },
+      ],
+    },
+    {
+      n: 3,
+      kind: 'single',
+      rest: '2 min',
+      notes: ['Serrer une seconde en haut de chaque rep.'],
+      movements: [
+        {
+          title: 'Alternating Cross-Body DB Hammer Curl',
+          match: 'Cross Body Hammer Curl',
+          sets: [{ reps: '4x12/12', rpe: '9' }],
+          links: [{ label: 'Cross Body Hammer Curl', url: 'https://youtu.be/YSvWzVwc2PY' }],
+        },
+      ],
+    },
+    {
+      n: 4,
+      kind: 'superset',
+      rounds: '4 tours',
+      rest: '2 min',
+      notes: [
+        'Un mouvement ajouté cette semaine.',
+        'Pousser la charge au hammer curl, un peu de triche est acceptée.',
+        'Les curls classiques n’ont pas besoin d’être lourds.',
+      ],
+      movements: [
+        { title: 'Dumbbell Hammer Curl', match: 'Hammer Curl', sets: [{ reps: '8', scheme: '4x8' }] },
+        { title: 'Dumbbell Curl', match: 'DB Curl', sets: [{ reps: '10-12', scheme: '4x10-12' }] },
+        {
+          title: 'Banded Hammer Curl',
+          match: 'Banded Hammer Curl',
+          sets: [{ reps: 'max reps', scheme: '4 x max' }],
+        },
+      ],
+    },
+    {
+      n: 5,
+      kind: 'single',
+      rest: '2 min',
+      notes: [
+        'Une série de plus et moins de reps cette semaine.',
+        'Maintenant que le mouvement est connu, ajouter de la charge.',
+      ],
+      movements: [
+        {
+          title: 'Flexion Row',
+          match: 'Flexion Row',
+          sets: [{ reps: '4x10-12', rpe: '7' }],
+          links: [{ label: 'Flexion Row (avec explication)', url: 'https://youtu.be/pv-lQeGdnqk' }],
+        },
+      ],
+    },
+    {
+      n: 6,
+      kind: 'single',
+      rest: '2 min',
+      notes: ['Viser plus de reps au total que la semaine dernière.', 'Cibler 10-12 reps par série.'],
+      movements: [
+        { title: 'Pull-Ups ou Lat Pull Down', choices: VERTICAL_PULLS, sets: [{ reps: '4 x max' }] },
+      ],
+    },
+    {
+      n: 7,
+      kind: 'finisher',
+      title: 'Finisher',
+      rounds: '4 tours',
+      rest: '1 min',
+      notes: ['Objectif volume de reps ; la forme peut se dégrader un peu, pas plus.'],
+      movements: [
+        {
+          title: 'Empty Bar Curl',
+          match: 'Empty Bar Curl',
+          sets: [{ reps: '30 s max reps', scheme: '4 x 30s' }],
+        },
+        { title: 'Ring Row', match: 'Ring Row', sets: [{ reps: '30 s max reps', scheme: '4 x 30s' }] },
+      ],
+    },
+  ],
+}
+
+const B6_S4 = {
+  title: 'Séance 4 · Jambes',
+  focus: 'Quadriceps, fessiers, unilatéral',
+  blocks: [
+    WARMUP_LEGS_B,
+    {
+      n: 1,
+      kind: 'single',
+      rest: '2-3 min',
+      notes: ['Reps encore en baisse cette semaine : vraiment pousser.'],
+      movements: [{ title: 'Squat', choices: SQUAT_MACHINES, sets: [{ reps: '4x8', rpe: '8-9' }] }],
+    },
+    {
+      n: 2,
+      kind: 'single',
+      title: 'Bulgarian Drop Set',
+      rounds: '3 tours',
+      rest: '1:30 entre jambes, 3 min entre tours',
+      notes: [
+        'Plus lourd que la semaine dernière, et une station de plus.',
+        '8-12 reps avec deux haltères, puis max reps avec un seul, puis max reps au poids de corps en 3 s de descente, puis max reps en version sautée.',
+        'La bulgare sautée est une fente bulgare avec un petit saut en haut.',
+      ],
+      movements: [
+        {
+          title: 'Bulgarian Split Squat',
+          match: 'Bulgarian Split Squat',
+          sets: [{ reps: '1x8-12', scheme: '3x8-12', rpe: '8', hint: '2 haltères' }],
+          links: [{ label: 'Bulgarian Split Squat', url: 'https://youtu.be/02B66MXEBso' }],
+        },
+      ],
+    },
+    {
+      n: 3,
+      kind: 'single',
+      rest: '1:30',
+      notes: [
+        'Plus lourd.',
+        'Bien exécutées, elles ciblent fortement les fessiers. Lester avec un kettlebell ou un haltère en position goblet.',
+      ],
+      movements: [
+        {
+          title: 'Deficit Curtsy Lunge',
+          match: 'Deficit Curtsy Lunge',
+          sets: [{ reps: '4x6-8 / côté', scheme: '4x6-8/6-8', rpe: '8' }],
+          links: [{ label: 'Elevated Curtsy Lunge', url: 'https://youtu.be/7D1FBnteMsQ' }],
+        },
+      ],
+    },
+    {
+      n: 4,
+      kind: 'single',
+      rest: '2 min',
+      notes: [
+        'Moins de reps, viser plus lourd.',
+        'Peu de charge nécessaire : étirer les ischios à la descente, serrer les fessiers en haut.',
+      ],
+      movements: [
+        {
+          title: 'Split Stance Dumbbell RDL',
+          match: 'Split Stance DB RDL',
+          sets: [{ reps: '4x8-10', rpe: '9' }],
+          links: [{ label: 'Split Stance RDL', url: 'https://youtu.be/H3-HbovevGY' }],
+        },
+      ],
+    },
+  ],
+}
+
+const B6_S5 = {
+  title: 'Séance 5 · Haut du corps',
+  focus: 'Pump haut du corps',
+  blocks: [
+    WARMUP_UPPER,
+    {
+      n: 1,
+      kind: 'single',
+      rest: '2 min',
+      notes: [
+        'Plus lourd et une série de plus.',
+        'Chercher l’amplitude maximale : descendre les haltères aussi bas que possible sans risque, quitte à alléger.',
+      ],
+      movements: [
+        { title: 'Dumbbell Bench Press', match: 'DB Bench Press', sets: [{ reps: '5x8-10', rpe: '9' }] },
+      ],
+    },
+    {
+      n: 2,
+      kind: 'single',
+      rest: '1 min',
+      notes: [
+        'Essayer de garder la même charge que la semaine dernière.',
+        'Machine de préférence, mais les haltères font le travail.',
+      ],
+      movements: [
+        {
+          title: 'Dumbbell Chest Fly',
+          choices: CHEST_FLIES,
+          sets: [{ reps: '4x15-20', rpe: '8' }],
+          links: [{ label: 'Dumbbell Chest Fly', url: 'https://youtu.be/zc8xJ-mebFs' }],
+        },
+      ],
+    },
+    {
+      n: 3,
+      kind: 'single',
+      rest: '2 min',
+      notes: ['Plus lourd.', 'En appui dorsal si l’installation le permet.'],
+      movements: [
+        {
+          title: 'Seated Dumbbell Arnold Press',
+          match: 'Arnold Press',
+          sets: [{ reps: '4x8-12', rpe: '9' }],
+          links: [{ label: 'Seated Arnold Press', url: 'https://youtu.be/lnTNmJ9mHLk' }],
+        },
+      ],
+    },
+    {
+      n: 4,
+      kind: 'single',
+      rest: '2 min',
+      notes: ['Plus lourd.', 'Plus de reps qu’en début de semaine : tirer avec les biceps.'],
+      movements: [
+        {
+          title: 'Barbell ou EZ Bar Curl',
+          choices: ['BB Curl', 'EZ Bar Curl'],
+          sets: [{ reps: '4x10', rpe: '8' }],
+        },
+      ],
+    },
+    {
+      n: 5,
+      kind: 'superset',
+      rounds: '3 tours',
+      rest: '2 min',
+      notes: ['Aller à l’échec sur le hammer curl.', 'Chercher la sensation dans le dos sur le rowing.'],
+      movements: [
+        {
+          title: 'Dumbbell Hammer Curl',
+          match: 'Hammer Curl',
+          sets: [{ reps: '8-12', scheme: '3x8-12', rpe: 'Échec' }],
+        },
+        {
+          title: 'Dumbbell Bent Over Row',
+          match: 'DB Bent Over Row',
+          sets: [{ reps: '8-12', scheme: '3x8-12' }],
+        },
+      ],
+    },
+    {
+      n: 6,
+      kind: 'single',
+      rest: '1 min',
+      notes: ['Une série de plus cette semaine.', 'Bien utiliser les deltoïdes postérieurs pour déplacer la charge.'],
+      movements: [
+        {
+          title: 'Rear Delt Fly',
+          match: 'Rear Delt Fly',
+          sets: [{ reps: '4 x max' }],
+          links: [{ label: 'Rear Delt Fly', url: 'https://youtu.be/84OwAoVBL4g' }],
+        },
+      ],
+    },
+    {
+      n: 7,
+      kind: 'finisher',
+      title: 'Finisher · Ski Erg',
+      rounds: 'Toutes les 2 min pendant 10 min (5 tours)',
+      notes: ['20 s de sprint à effort maximal. Simple, mais pas facile.'],
+      movements: [],
+    },
+  ],
+}
+
+// ---------------------------------------------------------------------------
+// Bloc 7 · semaine 1/4 — « 70's bodybuilding »
+// ---------------------------------------------------------------------------
+
+const B7_S1 = {
+  title: 'Séance 1 · Pecs & dos',
+  focus: 'Pectoraux, dos',
+  blocks: [
+    WARMUP_PUSH,
+    {
+      n: 1,
+      kind: 'single',
+      rest: '2-3 min',
+      notes: ['Toute variation de développé convient.', 'Garder environ 5 kg de réserve cette semaine.'],
+      movements: [
+        {
+          title: 'Barbell Bench Press',
+          choices: ['Bench Press', 'DB Bench Press'],
+          sets: [{ reps: '4x8-10', rpe: '8' }],
+        },
+      ],
+    },
+    {
+      n: 2,
+      kind: 'single',
+      rest: '1-2 min',
+      notes: ['Toute variation d’incliné convient.', 'Pousser plus fort que sur le développé plat.'],
+      movements: [
+        {
+          title: 'Incline Dumbbell Bench Press',
+          choices: INCLINE_PRESSES,
+          sets: [{ reps: '3x10-12', rpe: '9' }],
+          links: [
+            { label: 'Incline DB Bench Press', url: 'https://youtu.be/ZKSIGDglKUc' },
+            { label: 'Montage box + banc plat', url: 'https://youtu.be/xPmhAsgwAqw' },
+          ],
+        },
+      ],
+    },
+    {
+      n: 3,
+      kind: 'single',
+      rest: '1:30',
+      notes: ['« Dur » plutôt qu’un RPE : l’intensité est difficile à évaluer sur ce mouvement.'],
+      movements: [
+        {
+          title: 'Cable, Dumbbell ou Machine Chest Fly',
+          choices: ['Cable Chest Fly', 'Chest Fly', 'Machine Chest Fly'],
+          sets: [{ reps: '3x12-15', rpe: 'Dur' }],
+          links: [{ label: 'Dumbbell Chest Fly', url: 'https://youtu.be/zc8xJ-mebFs' }],
+        },
+      ],
+    },
+    {
+      n: 4,
+      kind: 'single',
+      rest: '2 min',
+      notes: [
+        'Cibler 12-15 reps par série, proche de l’échec sans y aller vraiment.',
+        'Prise la plus large possible, tant qu’elle reste raisonnable.',
+      ],
+      movements: [
+        {
+          title: 'Wide Grip Pull-Up ou Lat Pull Down',
+          choices: VERTICAL_PULLS,
+          sets: [{ reps: '4 x max', scheme: '4 x max prise large' }],
+        },
+      ],
+    },
+    {
+      n: 5,
+      kind: 'single',
+      notes: ['Tout tirage horizontal convient : seal row, bent over row, pendlay row.', 'Garder 5 à 10 kg de réserve.'],
+      movements: [
+        { title: 'Barbell Row', choices: HORIZONTAL_ROWS, sets: [{ reps: '4x8-10', rpe: '8' }] },
+      ],
+    },
+    {
+      n: 6,
+      kind: 'single',
+      rest: '1 min',
+      notes: ['Tempo contrôlé, et aller à l’échec.'],
+      movements: [
+        {
+          title: 'Seated Cable ou Band Row',
+          choices: ['Seated Cable Row', 'Banded Row'],
+          sets: [{ reps: '3x20-30', rpe: 'Échec' }],
+        },
+      ],
+    },
+    {
+      n: 7,
+      kind: 'finisher',
+      title: 'Finisher',
+      rounds: '8-10-12-10-8',
+      notes: ['La difficulté est le tempo : 2 s à la montée et 2 s à la descente sur les deux mouvements.'],
+      movements: [
+        { title: 'Barbell Curl', match: 'BB Curl', sets: [{ reps: '8-10-12-10-8' }] },
+        { title: 'Push-Up', match: 'Push-Up', sets: [{ reps: '8-10-12-10-8' }] },
+      ],
+    },
+  ],
+}
+
+const B7_S2 = {
+  title: 'Séance 2 · Jambes',
+  focus: 'Quadriceps, ischios',
+  blocks: [
+    WARMUP_LEGS_A,
+    {
+      n: 1,
+      kind: 'single',
+      rest: '2-3 min',
+      notes: [
+        'Surélever les talons si c’est possible en sécurité : la série doit être vraiment orientée quadriceps.',
+        'Une machine reste préférable si disponible.',
+      ],
+      movements: [{ title: 'Squat', choices: SQUAT_MACHINES, sets: [{ reps: '4x12', rpe: '8' }] }],
+    },
+    {
+      n: 2,
+      kind: 'single',
+      rest: '2 min',
+      notes: ['Se pousser. Utiliser des sangles pour ne pas être limité par la prise.'],
+      movements: [
+        {
+          title: 'Dumbbell RDL',
+          match: 'DB RDL',
+          sets: [{ reps: '3x12', rpe: '9' }],
+          links: [{ label: 'Dumbbell RDL', url: 'https://youtu.be/j4aMbw6rgcM' }],
+        },
+      ],
+    },
+    {
+      n: 3,
+      kind: 'single',
+      rest: '30 s entre jambes, 2 min entre tours',
+      notes: ['Box de 50 cm ou moins.', 'Possible en back rack.'],
+      movements: [
+        { title: 'Barbell Box Step Up', match: 'Barbell Box Step Up', sets: [{ reps: '3x8/8', rpe: '8' }] },
+      ],
+    },
+    {
+      n: 4,
+      kind: 'finisher',
+      title: 'Protocole 20-10-20',
+      notes: ['20 reps modérées, 10 lourdes, 20 modérées. Rendre ça vraiment inconfortable.'],
+      movements: [{ title: 'Goblet Squat', match: 'Goblet Squat', sets: [{ reps: '20-10-20' }] }],
+    },
+  ],
+}
+
+const B7_S3 = {
+  title: 'Séance 3 · Épaules & bras',
+  focus: 'Épaules, biceps, triceps',
+  blocks: [
+    WARMUP_PULL,
+    {
+      n: 1,
+      kind: 'single',
+      rest: '2-3 min',
+      notes: ['Le haut du corps se pousse plus souvent que le bas : possible d’aller proche de l’échec.'],
+      movements: [
+        {
+          title: 'Seated Dumbbell Strict Press',
+          match: 'Seated DB Strict Press',
+          sets: [{ reps: '4x8-10', rpe: '9' }],
+          links: [{ label: 'Seated DB Strict Press', url: 'https://youtu.be/bfUils3PbUo' }],
+        },
+      ],
+    },
+    {
+      n: 2,
+      kind: 'single',
+      rest: '1:30',
+      notes: ['Toute variation convient.'],
+      movements: [
+        {
+          title: 'Lateral Raise',
+          match: 'Lateral Raise',
+          sets: [{ reps: '4x15', rpe: 'Échec' }],
+          links: [{ label: 'Lateral Raise', url: 'https://youtube.com/shorts/0zGQ7mFhrmk' }],
+        },
+      ],
+    },
+    {
+      n: 3,
+      kind: 'single',
+      rest: '1:30',
+      notes: ['Machine si disponible.'],
+      movements: [
+        {
+          title: 'Rear Delt Fly',
+          match: 'Rear Delt Fly',
+          sets: [{ reps: '3x15', rpe: 'Échec' }],
+          links: [{ label: 'Rear Delt Fly', url: 'https://youtu.be/84OwAoVBL4g' }],
+        },
+      ],
+    },
+    {
+      n: 4,
+      kind: 'single',
+      rest: '2 min',
+      notes: ['Forme très stricte.'],
+      movements: [{ title: 'Barbell Curl', match: 'BB Curl', sets: [{ reps: '4x10-12', rpe: '8' }] }],
+    },
+    {
+      n: 5,
+      kind: 'single',
+      rest: '1:30',
+      notes: ['Aller à l’échec.'],
+      movements: [
+        {
+          title: 'Incline Dumbbell Curl',
+          match: 'Incline DB Curl',
+          sets: [{ reps: '3x12-15', rpe: 'Échec' }],
+          links: [{ label: 'Réglage du banc incliné', url: 'https://youtu.be/ZKSIGDglKUc' }],
+        },
+      ],
+    },
+    {
+      n: 6,
+      kind: 'single',
+      notes: ['L’haltère est la variante préférée, la poulie fonctionne aussi.'],
+      movements: [
+        {
+          title: 'Behind the Neck DB Triceps Extension',
+          match: 'BN DB Triceps Ext',
+          sets: [{ reps: '3x12-15', rpe: 'Échec' }],
+        },
+      ],
+    },
+    {
+      n: 7,
+      kind: 'finisher',
+      title: 'Finisher',
+      rounds: '100 reps en le moins de séries possible',
+      notes: ['La forme peut être un peu relâchée tant que le triceps travaille.'],
+      movements: [
+        {
+          title: 'Banded Triceps Push Down',
+          match: 'Banded Triceps Push Down',
+          sets: [{ reps: '100 reps' }],
+        },
+      ],
+    },
+  ],
+}
+
+const B7_S4 = {
+  title: 'Séance 4 · Jambes, dos & biceps',
+  focus: 'Quadriceps, dos, biceps',
+  blocks: [
+    WARMUP_LEGS_B,
+    {
+      n: 1,
+      kind: 'single',
+      rest: '2-3 min',
+      notes: [
+        'Pas de back squat ici : avec une barre, c’est un front squat.',
+        'Genoux vers l’avant, torse droit. Talons surélevés si besoin.',
+      ],
+      movements: [
+        {
+          title: 'Front Squat',
+          choices: ['Front Squat', 'Safety Squat Bar Squat', 'Pendulum Squat', 'Belt Squat'],
+          sets: [{ reps: '3x10', rpe: '8-9' }],
+        },
+      ],
+    },
+    {
+      n: 2,
+      kind: 'single',
+      rest: '2 min',
+      notes: ['Vraiment se concentrer sur le serrage des fessiers en haut.'],
+      movements: [
+        {
+          title: 'Sumo Dumbbell ou Kettlebell Deadlift',
+          choices: ['Sumo DB Deadlift', 'Sumo KB Deadlift'],
+          sets: [{ reps: '3x6-8', rpe: 'Dur' }],
+        },
+      ],
+    },
+    {
+      n: 3,
+      kind: 'single',
+      rest: '2 min',
+      notes: ['Toute variation convient.'],
+      movements: [
+        {
+          title: 'Hamstring Curl',
+          choices: HAMSTRING_CURLS,
+          sets: [{ reps: '3x12-15', rpe: '9' }],
+          links: [
+            { label: 'Assis', url: 'https://youtu.be/n0jmFV2y5PA' },
+            { label: 'Medball', url: 'https://youtu.be/sUgZhWEG2R8' },
+            { label: 'Sliders', url: 'https://youtu.be/y5AFD1eUbdA' },
+            { label: 'Allongé', url: 'https://youtu.be/1OvPxnZLix4' },
+          ],
+        },
+      ],
+    },
+    {
+      n: 4,
+      kind: 'single',
+      rest: '30 s entre côtés, 1:30 entre tours',
+      notes: [
+        'Prendre ses repères sur le mouvement cette semaine.',
+        'Poignée si disponible, sinon sangles pour que la prise ne limite pas.',
+      ],
+      movements: [
+        {
+          title: 'Landmine ou T-Bar Row',
+          choices: ['Landmine Row', 'T-Bar Row'],
+          sets: [{ reps: '4x12/12', rpe: '8' }],
+          links: [{ label: 'Landmine Row', url: 'https://youtu.be/QQZKSv9F3mo' }],
+        },
+      ],
+    },
+    {
+      n: 5,
+      kind: 'single',
+      rest: '1:30',
+      notes: ['Serrer en haut de chaque rep.', 'Poignet droit, pour mettre plus de tension sur le biceps.'],
+      movements: [
+        {
+          title: 'Dumbbell Hammer Curl',
+          match: 'Hammer Curl',
+          sets: [{ reps: '3x12-15', rpe: 'Échec' }],
+          links: [{ label: 'Dumbbell Hammer Curl', url: 'https://youtu.be/8ok69zgNmCM' }],
+        },
+      ],
+    },
+    {
+      n: 6,
+      kind: 'single',
+      rest: '1 min',
+      notes: [
+        'Bien exécuté, ce mouvement demande peu de charge : les biceps sont déjà congestionnés.',
+        'Tout est dans le serrage, poignet relâché.',
+      ],
+      movements: [{ title: 'Poliquin Curl', match: 'Poliquin Curl', sets: [{ reps: '3x10/10' }] }],
+    },
+  ],
+}
+
+const B7_S5 = {
+  title: 'Séance 5 · Pecs, épaules & bras',
+  focus: 'Pectoraux, épaules, bras',
+  blocks: [
+    WARMUP_UPPER,
+    {
+      n: 1,
+      kind: 'single',
+      rest: '2 min',
+      notes: ['Continuer l’amplitude maximale des dernières semaines si ça convenait, sinon revenir à la normale.'],
+      movements: [
+        { title: 'Dumbbell Bench Press', match: 'DB Bench Press', sets: [{ reps: '4x10', rpe: '8' }] },
+      ],
+    },
+    {
+      n: 2,
+      kind: 'single',
+      rest: '1:30',
+      notes: [
+        'À défaut de banc décliné, surélever le pied du banc d’un disque épais ou de deux disques fins de 20 kg.',
+        'Prendre ses repères cette semaine, ne pas pousser la charge.',
+      ],
+      movements: [
+        {
+          title: 'Slight Decline Bench',
+          choices: ['Decline Bench Press', 'Decline DB Bench Press', 'Machine Decline Press'],
+          sets: [{ reps: '3x12', rpe: '7' }],
+        },
+      ],
+    },
+    {
+      n: 3,
+      kind: 'single',
+      rest: '1 min',
+      notes: ['Mouvement destiné au serratus : chercher à le sentir.'],
+      movements: [
+        {
+          title: 'Straight Arm Banded Lat Pull Down',
+          match: 'Straight Arm Lat Pull Down',
+          sets: [{ reps: '4x15-20' }],
+          links: [
+            {
+              label: 'Straight Arm Band Lat Pull Down',
+              url: 'https://youtu.be/wxRF4yb2svE',
+            },
+          ],
+        },
+      ],
+    },
+    {
+      n: 4,
+      kind: 'single',
+      rest: '2 min',
+      notes: ['Assis ou debout, au choix.'],
+      movements: [
+        {
+          title: 'Arnold Press',
+          match: 'Arnold Press',
+          sets: [{ reps: '3x12', rpe: '9' }],
+          links: [
+            { label: 'Debout', url: 'https://youtu.be/t5LwFCLI4J0' },
+            { label: 'Assis', url: 'https://youtu.be/lnTNmJ9mHLk' },
+          ],
+        },
+      ],
+    },
+    {
+      n: 5,
+      kind: 'single',
+      rest: '1 min',
+      notes: ['Toute variation convient.'],
+      movements: [
+        {
+          title: 'Lateral Raise',
+          match: 'Lateral Raise',
+          sets: [{ reps: '3x15', rpe: 'Échec' }],
+          links: [{ label: 'Lateral Raise', url: 'https://youtube.com/shorts/0zGQ7mFhrmk' }],
+        },
+      ],
+    },
+    {
+      n: 6,
+      kind: 'single',
+      rest: '1 min',
+      notes: ['Aller à l’échec.'],
+      movements: [
+        {
+          title: 'Skull Crusher',
+          match: 'DB Skull Crusher',
+          sets: [{ reps: '3x15', rpe: 'Échec' }],
+          links: [{ label: 'Skull Crusher', url: 'https://youtu.be/j9O3-zlqva8' }],
+        },
+      ],
+    },
+    {
+      n: 7,
+      kind: 'finisher',
+      title: 'Finisher · Fan Bike',
+      rounds: '3 tours de 40 s à effort quasi maximal, repos 2:20',
+      notes: ['Tenir le wattage le plus haut possible ; la baisse d’un tour à l’autre est normale.'],
+      movements: [],
+    },
+  ],
+}
+
+// ---------------------------------------------------------------------------
+
+// days[0] = lundi … days[6] = dimanche. null = jour de repos.
+export const PROGRAMS = [
+  {
+    id: 'bloc6-s3',
+    label: 'Bloc 6 · semaine 3/4',
+    focus:
+      'Bloc plus classique : monter en charge et en reps chaque semaine, avec moins de techniques d’intensité et des séries droites.',
+    start: '2026-08-24',
+    end: '2026-08-30',
+    days: [B6_S1, B6_S2, B6_S3, null, B6_S4, B6_S5, null],
+  },
+  {
+    id: 'bloc7-s1',
+    label: 'Bloc 7 · semaine 1/4',
+    focus: 'Bloc « 70’s bodybuilding » : s’entraîner comme Arnold et les bodybuilders des années 70.',
+    start: '2026-08-31',
+    end: '2026-09-06',
+    days: [B7_S1, B7_S2, B7_S3, null, B7_S4, B7_S5, null],
+  },
+]
+
+export const PROGRAM_START = PROGRAMS[0].start
+export const PROGRAM_END = PROGRAMS[PROGRAMS.length - 1].end
+
+// Retourne { program, index, day } pour une date ISO, ou null hors période.
+export function findProgramDay(iso) {
+  for (const program of PROGRAMS) {
+    if (iso >= program.start && iso <= program.end) {
+      const index = dayDiff(program.start, iso)
+      return { program, index, day: program.days[index] || null }
+    }
+  }
+  return null
+}
+
+// Préfixe de persistance des choix d'un bloc. La clé complète d'un mouvement
+// est `${blockKey(...)}.m${index}` : stable tant que les données de programme
+// ne sont pas réordonnées.
+export function blockKey(programId, dayIndex, blockIndex) {
+  return `${programId}.d${dayIndex}.b${blockIndex}`
+}
