@@ -16,6 +16,7 @@ import {
   fmtDateShort,
   fmtKg,
   fmtNum,
+  fmtRpe,
   fmtSigned,
   loadDelta,
   newId,
@@ -39,7 +40,10 @@ function ChartTooltip({ active, payload, label, variants }) {
         const variant = variants.find((v) => v.id === p.dataKey)
         return (
           <div className="tooltip-row" key={p.dataKey}>
-            <span className="tooltip-scheme">{variant?.scheme || 'Format'}</span>
+            <span className="tooltip-scheme">
+              {variant?.scheme || 'Format'}
+              {variant?.rpe ? ` · ${fmtRpe(variant.rpe)}` : ''}
+            </span>
             <span className="tooltip-load" style={{ color: p.stroke }}>
               {fmtKg(p.value)}
             </span>
@@ -58,6 +62,7 @@ export default function ExerciseDetail({ exercise, onBack, onUpdate, onDelete })
   const [error, setError] = useState('')
   const [adding, setAdding] = useState(false)
   const [newScheme, setNewScheme] = useState('')
+  const [newRpe, setNewRpe] = useState('')
   const [newLoad, setNewLoad] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -75,10 +80,12 @@ export default function ExerciseDetail({ exercise, onBack, onUpdate, onDelete })
   const isPrincipal = active.id === principal.id
   const rm = rmValue(exercise)
   const [schemeDraft, setSchemeDraft] = useState(active.scheme)
+  const [rpeDraft, setRpeDraft] = useState(active.rpe || '')
 
   useEffect(() => {
     setSchemeDraft(active.scheme)
-  }, [active.id, active.scheme])
+    setRpeDraft(active.rpe || '')
+  }, [active.id, active.scheme, active.rpe])
 
   const history = useMemo(() => sortHistory(active.history), [active.history])
   const current = currentLoad(active.history)
@@ -130,11 +137,13 @@ export default function ExerciseDetail({ exercise, onBack, onUpdate, onDelete })
     const variant = {
       id: newId('v'),
       scheme: newScheme.trim(),
+      rpe: newRpe.trim(),
       history: startLoad === null ? [] : [{ date: todayISO(), load: startLoad }],
     }
     onUpdate({ variants: [...exercise.variants, variant] })
     setActiveId(variant.id)
     setNewScheme('')
+    setNewRpe('')
     setNewLoad('')
     setAdding(false)
   }
@@ -194,7 +203,10 @@ export default function ExerciseDetail({ exercise, onBack, onUpdate, onDelete })
                   }
                   onClick={() => setActiveId(v.id)}
                 >
-                  <span className="variant-scheme">{v.scheme || 'Sans schéma'}</span>
+                  <span className="variant-scheme">
+                    {v.scheme || 'Sans schéma'}
+                    {v.rpe && <em className="variant-rpe">{fmtRpe(v.rpe)}</em>}
+                  </span>
                   <span className="variant-load">
                     {vLoad === null ? '—' : fmtKg(vLoad)}
                   </span>
@@ -223,6 +235,14 @@ export default function ExerciseDetail({ exercise, onBack, onUpdate, onDelete })
                   value={newScheme}
                   onChange={(e) => setNewScheme(e.target.value)}
                   placeholder="3x12-15"
+                />
+              </label>
+              <label className="field">
+                <span>RPE</span>
+                <input
+                  value={newRpe}
+                  onChange={(e) => setNewRpe(e.target.value)}
+                  placeholder="8"
                 />
               </label>
               <label className="field">
@@ -341,6 +361,7 @@ export default function ExerciseDetail({ exercise, onBack, onUpdate, onDelete })
             Ajouter une charge{' '}
             <span className="card-title-tag">
               · {active.scheme || 'format courant'}
+              {active.rpe ? ` ${fmtRpe(active.rpe)}` : ''}
             </span>
           </h2>
           <form onSubmit={addPoint} className="form">
@@ -416,7 +437,7 @@ export default function ExerciseDetail({ exercise, onBack, onUpdate, onDelete })
               <span>
                 {isPrincipal
                   ? 'Libellé du format principal'
-                  : 'Schéma de la déclinaison'}
+                  : 'Schéma et RPE de la déclinaison'}
               </span>
               <div className="field-inline">
                 <input
@@ -424,17 +445,30 @@ export default function ExerciseDetail({ exercise, onBack, onUpdate, onDelete })
                   onChange={(e) => setSchemeDraft(e.target.value)}
                   placeholder="4x8-10"
                 />
+                <input
+                  className="rpe-input"
+                  value={rpeDraft}
+                  onChange={(e) => setRpeDraft(e.target.value)}
+                  placeholder="RPE 8"
+                  aria-label="RPE"
+                />
                 <button
                   type="button"
                   className="btn btn-icon"
                   onClick={() =>
-                    updateVariant(active.id, { scheme: schemeDraft.trim() })
+                    updateVariant(active.id, {
+                      scheme: schemeDraft.trim(),
+                      rpe: rpeDraft.trim(),
+                    })
                   }
-                  aria-label="Enregistrer le schéma"
+                  aria-label="Enregistrer le schéma et le RPE"
                 >
                   <Check size={16} />
                 </button>
               </div>
+              <p className="hint">
+                RPE libre : « 8 », « 9-10 », ou « Échec » / « Dur ».
+              </p>
             </label>
 
             {isPrincipal ? (
@@ -459,6 +493,7 @@ export default function ExerciseDetail({ exercise, onBack, onUpdate, onDelete })
             Historique{' '}
             <span className="card-title-tag">
               · {active.scheme || 'format courant'}
+              {active.rpe ? ` ${fmtRpe(active.rpe)}` : ''}
             </span>
           </h2>
           {history.length === 0 ? (

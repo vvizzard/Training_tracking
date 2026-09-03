@@ -1,9 +1,9 @@
 # Suivi des charges
 
 Petite web app de suivi de charges en musculation : liste d'exercices regroupés par zone
-musculaire et filtrables, RM, déclinaisons de séries/reps, courbe d'évolution des charges dans
-le temps. Aucun backend, tout est stocké dans le `localStorage` du navigateur sous la clé
-`suivi_charges_v4`.
+musculaire et filtrables, RM, déclinaisons de séries/reps avec leur RPE, courbe d'évolution des
+charges dans le temps. Aucun backend, tout est stocké dans le `localStorage` du navigateur sous
+la clé `suivi_charges_v5`.
 
 Stack : Vite + React (JavaScript), [Recharts](https://recharts.org) pour le graphique,
 [lucide-react](https://lucide.dev) pour les icônes.
@@ -79,10 +79,10 @@ format est le format principal : c'est le RM.** Les suivants sont ses déclinais
   note: "",
   variants: [
     // variants[0] = format principal (le RM), jamais supprimable
-    { id: "v_0", scheme: "RM",      history: [{ date: "2026-07-01", load: 90 },
-                                              { date: "2026-09-02", load: 95 }] },
-    { id: "v_1", scheme: "4x8-10",  history: [{ date: "2026-09-02", load: 60 }] },
-    { id: "v_2", scheme: "3x12-15", history: [{ date: "2026-09-02", load: 55 }] }
+    { id: "v_0", scheme: "RM",      rpe: "",      history: [{ date: "2026-07-01", load: 90 },
+                                                            { date: "2026-09-02", load: 95 }] },
+    { id: "v_1", scheme: "4x8-10",  rpe: "8",     history: [{ date: "2026-09-02", load: 60 }] },
+    { id: "v_2", scheme: "3x12-15", rpe: "Échec", history: [{ date: "2026-09-02", load: 55 }] }
   ]
 }
 ```
@@ -94,6 +94,9 @@ format est le format principal : c'est le RM.** Les suivants sont ses déclinais
   sélectionné.
 - Une date = un point : ressaisir la même date écrase la valeur existante.
 - Une déclinaison peut être supprimée, jamais le format principal.
+- Le **RPE** est du texte libre, repris du programme : `8`, `9-10`, mais aussi `Échec` (séries
+  notées *Failure*) ou `Dur` (*Tough* / *HARD*). Il s'affiche préfixé de « RPE » uniquement
+  quand il commence par un chiffre, et reste vide quand le programme n'en donne pas.
 - La **zone** sert à regrouper la liste en sections ; la recherche porte sur le nom, la note,
   la zone et les schémas de reps, sans tenir compte des accents.
 - Les champs numériques acceptent la virgule comme séparateur décimal (`17,5` = `17.5`).
@@ -109,12 +112,15 @@ sauvegarde.
 | `suivi_charges_v1` | un seul schéma par exercice (`scheme` + `history` à la racine) | le schéma devient une déclinaison |
 | `suivi_charges_v2` | plusieurs formats, RM en valeur isolée de l'exercice | le RM devient le format principal, daté du jour de la migration |
 | `suivi_charges_v3` | formats et RM principal, sans zone | la zone est retrouvée par le nom pour les exercices du jeu de départ, sinon « Autre » |
+| `suivi_charges_v4` | zones, mais pas de RPE sur les formats | le RPE est retrouvé par le couple nom + schéma pour les formats du jeu de départ, sinon vide |
 
 Pour repartir de zéro (et régénérer les données de départ), vide les clés dans le localStorage
 du navigateur :
 
 ```js
-['v1', 'v2', 'v3', 'v4'].forEach((v) => localStorage.removeItem('suivi_charges_' + v))
+['v1', 'v2', 'v3', 'v4', 'v5'].forEach((v) =>
+  localStorage.removeItem('suivi_charges_' + v)
+)
 ```
 
 Les données étant locales au navigateur, elles ne sont ni synchronisées entre appareils ni

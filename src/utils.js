@@ -14,6 +14,14 @@ export function fmtNum(n) {
   return String(Math.round(n * 100) / 100)
 }
 
+// RPE saisi librement : « 8 », « 9-10 », mais aussi « Échec » ou « Dur ».
+// On préfixe par « RPE » seulement quand la valeur commence par un chiffre.
+export function fmtRpe(rpe) {
+  const raw = String(rpe || '').trim()
+  if (!raw) return ''
+  return /^\d/.test(raw) ? `RPE ${raw}` : raw
+}
+
 export function fmtKg(n) {
   if (n === null || n === undefined || !Number.isFinite(n)) return '—'
   return fmtNum(n) + 'kg'

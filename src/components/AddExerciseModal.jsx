@@ -7,7 +7,7 @@ export default function AddExerciseModal({ onClose, onSubmit }) {
   const [rm, setRm] = useState('')
   const [note, setNote] = useState('')
   const [zone, setZone] = useState(DEFAULT_ZONE)
-  const [rows, setRows] = useState([{ scheme: '', load: '' }])
+  const [rows, setRows] = useState([{ scheme: '', rpe: '', load: '' }])
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -36,6 +36,7 @@ export default function AddExerciseModal({ onClose, onSubmit }) {
     const principal = {
       id: newId('v'),
       scheme: RM_SCHEME,
+      rpe: '',
       history: rmLoad === null ? [] : [{ date, load: rmLoad }],
     }
     const declinations = rows
@@ -45,6 +46,7 @@ export default function AddExerciseModal({ onClose, onSubmit }) {
         return {
           id: newId('v'),
           scheme: r.scheme.trim(),
+          rpe: r.rpe.trim(),
           history: startLoad === null ? [] : [{ date, load: startLoad }],
         }
       })
@@ -115,7 +117,7 @@ export default function AddExerciseModal({ onClose, onSubmit }) {
           </label>
 
           <div className="field">
-            <span>Déclinaisons (schéma de reps et charge)</span>
+            <span>Déclinaisons (schéma, RPE et charge)</span>
             {rows.map((row, i) => (
               <div className="variant-row" key={i}>
                 <input
@@ -123,6 +125,13 @@ export default function AddExerciseModal({ onClose, onSubmit }) {
                   onChange={(e) => setRow(i, { scheme: e.target.value })}
                   placeholder={i === 0 ? '4x8-10' : '3x12-15'}
                   aria-label={`Schéma de la déclinaison ${i + 1}`}
+                />
+                <input
+                  className="rpe-input"
+                  value={row.rpe}
+                  onChange={(e) => setRow(i, { rpe: e.target.value })}
+                  placeholder="RPE"
+                  aria-label={`RPE de la déclinaison ${i + 1}`}
                 />
                 <input
                   className="variant-load-input"
@@ -146,7 +155,9 @@ export default function AddExerciseModal({ onClose, onSubmit }) {
             <button
               type="button"
               className="btn btn-block btn-subtle"
-              onClick={() => setRows((list) => [...list, { scheme: '', load: '' }])}
+              onClick={() =>
+                setRows((list) => [...list, { scheme: '', rpe: '', load: '' }])
+              }
             >
               <Plus size={15} /> Ajouter une déclinaison
             </button>

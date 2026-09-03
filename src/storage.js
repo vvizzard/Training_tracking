@@ -1,10 +1,12 @@
-import { buildSeed, ZONE_BY_NAME } from './seed.js'
+import { buildSeed, RPE_BY_KEY, ZONE_BY_NAME } from './seed.js'
 import { DEFAULT_ZONE, newId, RM_SCHEME, todayISO, ZONES } from './utils.js'
 
-export const STORAGE_KEY = 'suivi_charges_v4'
+export const STORAGE_KEY = 'suivi_charges_v5'
 // v1 : un seul schéma par exercice (scheme + history à la racine).
 // v2 : plusieurs formats, mais le RM était une valeur isolée de l'exercice.
 // v3 : le RM est devenu le format principal ; pas encore de zone musculaire.
+// v4 : zones musculaires, mais pas encore de RPE sur les formats.
+const V4_KEY = 'suivi_charges_v4'
 const V3_KEY = 'suivi_charges_v3'
 const V2_KEY = 'suivi_charges_v2'
 const V1_KEY = 'suivi_charges_v1'
@@ -21,6 +23,7 @@ function normalizeVariant(v, fallbackScheme = '') {
   return {
     id: v && v.id ? v.id : newId('v'),
     scheme: String((v && v.scheme) || fallbackScheme),
+    rpe: String((v && v.rpe) || ''),
     history: normalizeHistory(v && v.history),
   }
 }
@@ -81,6 +84,19 @@ function migrateV3toV4(list) {
   return list.map((e) => ({ ...e, zone: ZONE_BY_NAME[e.name] || DEFAULT_ZONE }))
 }
 
+// Les formats du jeu de départ retrouvent le RPE du programme via leur
+// couple nom + schéma ; les formats saisis à la main restent sans RPE.
+function migrateV4toV5(list) {
+  if (!Array.isArray(list)) return null
+  return list.map((e) => ({
+    ...e,
+    variants: (Array.isArray(e.variants) ? e.variants : []).map((v) => ({
+      ...v,
+      rpe: v.rpe || RPE_BY_KEY[`${e.name}|${v.scheme}`] || '',
+    })),
+  }))
+}
+
 export function loadExercises() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -90,9 +106,10 @@ export function loadExercises() {
     }
 
     const migrations = [
-      [V3_KEY, (d) => migrateV3toV4(d)],
-      [V2_KEY, (d) => migrateV3toV4(migrateV2toV3(d))],
-      [V1_KEY, (d) => migrateV3toV4(migrateV2toV3(migrateV1toV2(d)))],
+      [V4_KEY, (d) => migrateV4toV5(d)],
+      [V3_KEY, (d) => migrateV4toV5(migrateV3toV4(d))],
+      [V2_KEY, (d) => migrateV4toV5(migrateV3toV4(migrateV2toV3(d)))],
+      [V1_KEY, (d) => migrateV4toV5(migrateV3toV4(migrateV2toV3(migrateV1toV2(d))))],
     ]
     for (const [key, migrate] of migrations) {
       const raw = localStorage.getItem(key)

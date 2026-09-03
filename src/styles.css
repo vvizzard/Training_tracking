@@ -234,6 +234,13 @@ input {
   color: var(--muted);
 }
 
+.chip-rpe {
+  padding: 0 5px;
+  border-left: 1px solid #3a404c;
+  font-size: 11px;
+  color: var(--muted);
+}
+
 .chip-sep {
   color: #4a505c;
 }
@@ -706,7 +713,21 @@ input[type='date']::-webkit-calendar-picker-indicator {
 }
 
 .variant-scheme {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
   font-size: 13px;
+  color: var(--muted);
+}
+
+.variant-rpe {
+  font-size: 10.5px;
+  font-style: normal;
+  letter-spacing: 0.02em;
+  color: #6b7280;
+}
+
+.variant-tab.active .variant-rpe {
   color: var(--muted);
 }
 
@@ -893,4 +914,14 @@ input[type='date']::-webkit-calendar-picker-indicator {
   font-size: 10.5px;
   letter-spacing: 0;
   font-variant-numeric: tabular-nums;
+}
+
+/* Champ RPE : plus étroit que le schéma, qu'il accompagne toujours. */
+.rpe-input {
+  flex: 0 0 76px;
+}
+
+.variant-row .rpe-input,
+.field-inline .rpe-input {
+  flex: 0 0 76px;
 }

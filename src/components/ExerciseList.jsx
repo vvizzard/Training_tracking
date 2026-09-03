@@ -1,4 +1,11 @@
-import { currentLoad, declinations, fmtKg, fmtNum, rmValue } from '../utils.js'
+import {
+  currentLoad,
+  declinations,
+  fmtKg,
+  fmtNum,
+  fmtRpe,
+  rmValue,
+} from '../utils.js'
 
 function ExerciseRow({ exercise, onSelect }) {
   const rm = rmValue(exercise)
@@ -24,6 +31,7 @@ function ExerciseRow({ exercise, onSelect }) {
             return (
               <span className="chip" key={v.id}>
                 {v.scheme && <span className="chip-scheme">{v.scheme}</span>}
+                {v.rpe && <span className="chip-rpe">{fmtRpe(v.rpe)}</span>}
                 {v.scheme && <span className="chip-sep">:</span>}
                 <span className={'chip-load' + (load === null ? ' empty' : '')}>
                   {load === null ? '—' : fmtKg(load)}
