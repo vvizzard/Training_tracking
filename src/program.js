@@ -1,4 +1,4 @@
-import { dayDiff } from './utils.js'
+import { addDays, dayDiff } from './utils.js'
 
 // Programmes reconstitués à partir des deux documents HWPO Bodybuilding
 // (bloc 6 semaine 3/4, et bloc 7 semaine 1/4), replacés sur la semaine
@@ -1040,9 +1040,6 @@ export const PROGRAMS = [
   },
 ]
 
-export const PROGRAM_START = PROGRAMS[0].start
-export const PROGRAM_END = PROGRAMS[PROGRAMS.length - 1].end
-
 // Retourne { program, day, dayKey } pour une date ISO, ou null si aucun
 // programme ne la couvre. `day` vaut null pour un jour de repos.
 //
@@ -1078,6 +1075,48 @@ export function findProgramDay(iso, overrides = []) {
     }
   }
   return null
+}
+
+// Toutes les dates portant une séance, jours de repos exclus. Les dates sont
+// collectées sur toutes les sources, puis repassées par findProgramDay pour
+// que la priorité entre programmes soit respectée : un jour de repos déclaré
+// dans un import l'emporte sur la séance du programme intégré.
+export function sessionDates(overrides = []) {
+  const all = new Set()
+  for (const program of PROGRAMS) {
+    program.days.forEach((_, i) => all.add(addDays(program.start, i)))
+  }
+  for (const program of overrides) {
+    for (const day of program.days || []) if (day?.date) all.add(day.date)
+  }
+  return [...all].filter((iso) => findProgramDay(iso, overrides)?.day).sort()
+}
+
+// Date de séance la plus proche de `iso`, passée ou à venir. Sert à ouvrir la
+// page sur quelque chose d'utile plutôt que sur un écran vide.
+export function nearestSessionDate(iso, overrides = []) {
+  let best = null
+  let bestGap = Infinity
+  for (const candidate of sessionDates(overrides)) {
+    const gap = Math.abs(dayDiff(iso, candidate))
+    if (gap < bestGap) {
+      best = candidate
+      bestGap = gap
+    }
+  }
+  return best
+}
+
+// Avancement d'une journée : blocs marqués faits sur le total. null quand la
+// date ne porte pas de séance.
+export function dayProgress(found, done = {}) {
+  const blocks = found?.day?.blocks || []
+  if (!blocks.length) return null
+  let count = 0
+  for (let i = 0; i < blocks.length; i += 1) {
+    if (done[blockKey(found.program.id, found.dayKey, i)]) count += 1
+  }
+  return { count, total: blocks.length }
 }
 
 // Préfixe de persistance des choix d'un bloc. La clé complète d'un mouvement

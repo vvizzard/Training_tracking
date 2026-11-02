@@ -65,6 +65,16 @@ export function dayDiff(a, b) {
   return Math.round((toDate(b) - toDate(a)) / 86400000)
 }
 
+// Lundi de la semaine contenant `iso` : la barre de jours suit la semaine
+// française, du lundi au dimanche.
+export function startOfWeek(iso) {
+  const dow = (toDate(iso).getUTCDay() + 6) % 7
+  return addDays(iso, -dow)
+}
+
+// Initiales des jours, dans le même ordre que startOfWeek.
+export const WEEKDAY_LETTERS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
+
 // "2026-09-03" -> "jeudi 3 septembre"
 export function fmtDateWeekday(iso) {
   return new Intl.DateTimeFormat('fr-FR', {
@@ -105,6 +115,17 @@ export function loadForDate(history, date) {
   const before = [...sorted].reverse().find((p) => p.date < date)
   const fallback = before || sorted[sorted.length - 1]
   return { value: fallback.load, logged: false }
+}
+
+// Dernier point strictement antérieur à `date`. Il date la charge grise
+// affichée en repère dans la page Programme, et sert à mesurer la progression
+// de la séance du jour.
+export function previousPoint(history, date) {
+  const sorted = sortHistory(history)
+  for (let i = sorted.length - 1; i >= 0; i -= 1) {
+    if (sorted[i].date < date) return sorted[i]
+  }
+  return null
 }
 
 // Delta = dernier point - premier point.

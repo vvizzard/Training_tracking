@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays, Dumbbell, Plus, Search, Upload, UserRound, X } from 'lucide-react'
 import ExerciseList from './components/ExerciseList.jsx'
 import ExerciseDetail from './components/ExerciseDetail.jsx'
@@ -6,7 +6,7 @@ import AddExerciseModal from './components/AddExerciseModal.jsx'
 import ProgramView, { ProgramDateNav } from './components/ProgramView.jsx'
 import ImportProgramModal from './components/ImportProgramModal.jsx'
 import ProfileGate from './components/ProfileGate.jsx'
-import { findProgramDay } from './program.js'
+import { dayProgress, findProgramDay, nearestSessionDate } from './program.js'
 import { ensureExercisesFor } from './programSync.js'
 import {
   clearHash,
@@ -63,6 +63,10 @@ export default function App() {
   const [modalOpen, setModalOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [date, setDate] = useState(todayISO)
+  // Le programme du profil arrive après coup : on attend sa résolution avant
+  // de choisir sur quelle date ouvrir la page.
+  const [profileReady, setProfileReady] = useState(() => !initialProfile?.slug)
+  const jumped = useRef(false)
 
   // La reprise des données d'avant les profils n'a lieu qu'une fois, après les
   // premières lectures du stockage.
@@ -113,7 +117,9 @@ export default function App() {
     // Le nom est transmis même pour une source distante : il sert à retrouver
     // la version en cache si le réseau est absent.
     fetchProfile(profile.url ? { url: profile.url, slug } : { slug }).then((result) => {
-      if (cancelled || !result.ok) return
+      if (cancelled) return
+      setProfileReady(true)
+      if (!result.ok) return
       setProfilePrograms(result.programs)
       setExercises((list) => ensureExercisesFor(result.programs, list).exercises)
       if (result.label && result.label !== profile.label) {
@@ -254,6 +260,22 @@ export default function App() {
     [profilePrograms, imported]
   )
 
+  // À l'ouverture, la page Programme se place sur la séance la plus proche
+  // quand la date du jour n'est couverte par aucun programme : sans cela, un
+  // programme terminé depuis une semaine n'ouvre plus que sur du vide.
+  useEffect(() => {
+    if (jumped.current || !profileReady || resolvingLink) return
+    if (findProgramDay(date, overrides)) {
+      jumped.current = true
+      return
+    }
+    const nearest = nearestSessionDate(date, overrides)
+    if (nearest && nearest !== date) {
+      jumped.current = true
+      setDate(nearest)
+    }
+  }, [overrides, profileReady, resolvingLink, date])
+
   if (resolvingLink) {
     return (
       <div className="gate">
@@ -296,6 +318,7 @@ export default function App() {
 
   const isProgram = view === 'programme'
   const programDay = isProgram ? findProgramDay(date, overrides) : null
+  const progress = dayProgress(programDay, done)
 
   return (
     <div className="app">
@@ -369,7 +392,12 @@ export default function App() {
         </div>
 
         {isProgram ? (
-          <ProgramDateNav date={date} onDateChange={setDate} overrides={overrides} />
+          <ProgramDateNav
+            date={date}
+            onDateChange={setDate}
+            overrides={overrides}
+            done={done}
+          />
         ) : (
           <div className="search">
             <Search size={16} className="search-icon" />
@@ -391,6 +419,15 @@ export default function App() {
               </button>
             )}
           </div>
+        )}
+
+        {/* Avancement de la séance, posé sur le bord bas du bandeau : visible
+            tout du long du défilement, sans coûter une ligne de plus. */}
+        {progress && (
+          <span
+            className="prog-progress"
+            style={{ width: `${(progress.count / progress.total) * 100}%` }}
+          />
         )}
       </header>
 

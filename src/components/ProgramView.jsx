@@ -8,14 +8,25 @@ import {
   Moon,
   RotateCcw,
 } from 'lucide-react'
-import { blockKey, findProgramDay, PROGRAM_END, PROGRAM_START } from '../program.js'
+import {
+  blockKey,
+  dayProgress,
+  findProgramDay,
+  nearestSessionDate,
+} from '../program.js'
 import {
   addDays,
+  fmtDateShort,
   fmtKg,
   fmtRpe,
+  fmtSigned,
   loadForDate,
   parseNum,
+  previousPoint,
   RM_SCHEME,
+  startOfWeek,
+  todayISO,
+  WEEKDAY_LETTERS,
 } from '../utils.js'
 
 // Résout le nom d'exercice retenu pour un mouvement : le choix enregistré s'il
@@ -138,11 +149,32 @@ function VariantList({ exercise, activeVariantId, date, editingId, onEdit, onRec
   )
 }
 
+// Repère sous la série : ce qui a été soulevé la fois précédente, et l'écart
+// avec la charge du jour quand elle est notée. C'est la seule information qui
+// dit si la séance progresse.
+function SetReference({ previous, load, logged }) {
+  if (!previous) return null
+  if (!logged) {
+    return (
+      <p className="prog-prev">dernière fois le {fmtDateShort(previous.date)}</p>
+    )
+  }
+  const delta = load - previous.load
+  const tone = delta > 0 ? ' up' : delta < 0 ? ' down' : ''
+  return (
+    <p className="prog-prev">
+      dernière fois {fmtKg(previous.load)}
+      <span className={'prog-delta' + tone}>{fmtSigned(delta)}kg</span>
+    </p>
+  )
+}
+
 function SetLine({ set, exercise, date, open, onToggle, editingId, onEdit, onRecord }) {
   const variant = findVariant(exercise, set)
   const { value: load, logged } = variant
     ? loadForDate(variant.history, date)
     : { value: null, logged: false }
+  const previous = variant ? previousPoint(variant.history, date) : null
   const isEditing = variant && editingId === variant.id
 
   return (
@@ -176,6 +208,8 @@ function SetLine({ set, exercise, date, open, onToggle, editingId, onEdit, onRec
         </button>
       </div>
 
+      {!isEditing && <SetReference previous={previous} load={load} logged={logged} />}
+
       {isEditing && (
         <LoadEditor
           value={load}
@@ -202,6 +236,43 @@ function SetLine({ set, exercise, date, open, onToggle, editingId, onEdit, onRec
   )
 }
 
+// Le programme laisse souvent le choix entre plusieurs exercices. Le nom
+// retenu tient lieu de titre : le bloc annonce ce qu'on va vraiment faire, et
+// non l'intitulé générique du programme.
+function ChoiceButton({ name, open, onToggle }) {
+  return (
+    <button
+      type="button"
+      className="prog-picker"
+      onClick={onToggle}
+      aria-expanded={open}
+    >
+      <span className="prog-picker-name">{name}</span>
+      <ChevronDown size={14} className={'prog-caret' + (open ? ' open' : '')} />
+    </button>
+  )
+}
+
+function ChoiceList({ options, name, onPick }) {
+  return (
+    <div className="prog-picker-list" role="radiogroup" aria-label="Exercice retenu">
+      {options.map((option) => (
+        <button
+          key={option}
+          type="button"
+          role="radio"
+          aria-checked={option === name}
+          className={'prog-picker-opt' + (option === name ? ' current' : '')}
+          onClick={() => onPick(option)}
+        >
+          <Check size={14} className="prog-picker-check" />
+          {option}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function Movement({
   mov,
   keyPrefix,
@@ -219,13 +290,26 @@ function Movement({
   const exercise = name ? byName.get(name) : null
   const [openSet, setOpenSet] = useState(null)
   const [editingId, setEditingId] = useState(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
+
+  // Quand le titre est masqué, c'est le bloc qui porte le sélecteur : il ne
+  // faut pas l'afficher deux fois.
+  const ownPicker = Boolean(mov.choices) && !hideTitle
 
   return (
     <div className="prog-mov">
       {(!hideTitle || exercise) && (
         <div className="prog-mov-head">
           {/* Titre masqué quand il répète déjà celui du bloc. */}
-          {!hideTitle && <span className="prog-mov-title">{mov.title}</span>}
+          {ownPicker ? (
+            <ChoiceButton
+              name={name}
+              open={pickerOpen}
+              onToggle={() => setPickerOpen(!pickerOpen)}
+            />
+          ) : (
+            !hideTitle && <span className="prog-mov-title">{mov.title}</span>
+          )}
           {exercise && (
             <button
               type="button"
@@ -238,24 +322,17 @@ function Movement({
         </div>
       )}
 
-      {mov.choices && (
-        <label className="prog-choice">
-          <span>Choix</span>
-          <select
-            value={name || ''}
-            onChange={(e) => {
-              onChoice(key, e.target.value)
-              setOpenSet(null)
-              setEditingId(null)
-            }}
-          >
-            {mov.choices.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
+      {ownPicker && pickerOpen && (
+        <ChoiceList
+          options={mov.choices}
+          name={name}
+          onPick={(option) => {
+            onChoice(key, option)
+            setPickerOpen(false)
+            setOpenSet(null)
+            setEditingId(null)
+          }}
+        />
       )}
 
       {!mov.choices && name && name !== mov.title && (
@@ -337,16 +414,33 @@ function WarmupBlock({ block, done, onToggleDone }) {
   )
 }
 
-function Block({ block, blockIndex, programId, dayKey, done, onToggleDone, ...rest }) {
+function Block({
+  block,
+  blockIndex,
+  programId,
+  dayKey,
+  done,
+  onToggleDone,
+  choices,
+  onChoice,
+  ...rest
+}) {
   const key = blockKey(programId, dayKey, blockIndex)
   const isDone = Boolean(done[key])
   const toggle = () => onToggleDone(key)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   if (block.kind === 'warmup') {
     return <WarmupBlock block={block} done={isDone} onToggleDone={toggle} />
   }
 
   const label = block.title || (block.kind === 'superset' ? 'Superset' : null)
+  // Le titre du bloc reprend celui de son mouvement unique : c'est donc lui
+  // qui porte le sélecteur, pour n'afficher le nom qu'une fois.
+  const hideTitle = !label && block.movements.length === 1
+  const pickerMov = hideTitle && block.movements[0].choices ? block.movements[0] : null
+  const pickerKey = `${key}.m0`
+  const pickerName = pickerMov ? resolveName(pickerMov, pickerKey, choices) : null
 
   return (
     <section className={'card prog-block ' + block.kind + (isDone ? ' is-done' : '')}>
@@ -356,7 +450,15 @@ function Block({ block, blockIndex, programId, dayKey, done, onToggleDone, ...re
         ) : (
           block.n != null && <span className="prog-n">{block.n}</span>
         )}
-        {label || block.movements[0]?.title || 'Bloc'}
+        {pickerMov && !isDone ? (
+          <ChoiceButton
+            name={pickerName}
+            open={pickerOpen}
+            onToggle={() => setPickerOpen(!pickerOpen)}
+          />
+        ) : (
+          pickerName || label || block.movements[0]?.title || 'Bloc'
+        )}
         {!isDone && block.rounds && <span className="prog-meta">{block.rounds}</span>}
         {isDone && (
           <button type="button" className="prog-reopen" onClick={toggle}>
@@ -365,15 +467,30 @@ function Block({ block, blockIndex, programId, dayKey, done, onToggleDone, ...re
         )}
       </h3>
 
+      {pickerMov && pickerOpen && !isDone && (
+        <ChoiceList
+          options={pickerMov.choices}
+          name={pickerName}
+          onPick={(option) => {
+            onChoice(pickerKey, option)
+            setPickerOpen(false)
+          }}
+        />
+      )}
+
       {!isDone && (
         <>
           {block.movements.map((mov, i) => (
             <Movement
-              key={i}
+              /* La clé inclut le nom retenu : changer d'exercice remonte le
+                 mouvement, et remet à zéro sa saisie en cours. */
+              key={`${i}:${pickerName || ''}`}
               mov={mov}
               keyPrefix={key}
               movIndex={i}
-              hideTitle={!label && block.movements.length === 1}
+              hideTitle={hideTitle}
+              choices={choices}
+              onChoice={onChoice}
               {...rest}
             />
           ))}
@@ -416,23 +533,25 @@ export default function ProgramView({
   const found = findProgramDay(date, overrides)
 
   if (!found) {
+    const nearest = nearestSessionDate(date, overrides)
     return (
       <p className="empty-state">
-        Aucun programme pour cette date. Les deux semaines intégrées vont du{' '}
-        {PROGRAM_START.slice(8)}/{PROGRAM_START.slice(5, 7)} au{' '}
-        {PROGRAM_END.slice(8)}/{PROGRAM_END.slice(5, 7)}.{' '}
-        <button
-          type="button"
-          className="link-btn"
-          onClick={() => onDateChange(PROGRAM_START)}
-        >
-          Aller au début
-        </button>
+        Aucun programme pour cette date.{' '}
+        {nearest && (
+          <button
+            type="button"
+            className="link-btn"
+            onClick={() => onDateChange(nearest)}
+          >
+            Aller à la séance du {fmtDateShort(nearest)}
+          </button>
+        )}
       </p>
     )
   }
 
   const { program, dayKey, day } = found
+  const progress = dayProgress(found, done)
 
   if (!day) {
     return (
@@ -455,6 +574,15 @@ export default function ProgramView({
           {day.title}
           {program.source === 'profil' && <span className="prog-badge">profil</span>}
           {program.source === 'import' && <span className="prog-badge">importé</span>}
+          {progress && (
+            <span
+              className={
+                'prog-count' + (progress.count === progress.total ? ' full' : '')
+              }
+            >
+              {progress.count}/{progress.total}
+            </span>
+          )}
         </h2>
         {day.focus && <p className="prog-day-focus">{day.focus}</p>}
         {program.focus && <p className="prog-program-focus">{program.focus}</p>}
@@ -481,34 +609,66 @@ export default function ProgramView({
   )
 }
 
-// Barre de navigation par date, affichée dans l'en-tête.
-export function ProgramDateNav({ date, onDateChange, overrides }) {
-  const found = findProgramDay(date, overrides)
+// État d'un jour dans la barre de semaine : rien, repos, séance, séance faite.
+function weekDayState(iso, overrides, done) {
+  const found = findProgramDay(iso, overrides)
+  if (!found) return 'none'
+  if (!found.day) return 'rest'
+  const progress = dayProgress(found, done)
+  return progress && progress.count === progress.total ? 'done' : 'session'
+}
+
+// Barre de semaine, affichée dans l'en-tête : les jours d'entraînement, les
+// jours de repos et les séances déjà faites se lisent d'un coup d'œil, et on
+// change de jour d'un seul geste.
+export function ProgramDateNav({ date, onDateChange, overrides, done = {} }) {
+  const monday = startOfWeek(date)
+  const today = todayISO()
+
   return (
-    <div className="date-nav">
+    <div className="week-strip">
       <button
         type="button"
-        className="btn btn-icon"
-        onClick={() => onDateChange(addDays(date, -1))}
-        aria-label="Jour précédent"
+        className="btn btn-icon week-arrow"
+        onClick={() => onDateChange(addDays(monday, -7))}
+        aria-label="Semaine précédente"
       >
         <ChevronLeft size={18} />
       </button>
-      <input
-        type="date"
-        value={date}
-        onChange={(e) => e.target.value && onDateChange(e.target.value)}
-        aria-label="Date du programme"
-      />
+
+      <div className="week-days">
+        {WEEKDAY_LETTERS.map((letter, i) => {
+          const iso = addDays(monday, i)
+          const state = weekDayState(iso, overrides, done)
+          return (
+            <button
+              key={iso}
+              type="button"
+              className={
+                'week-day ' +
+                state +
+                (iso === date ? ' selected' : '') +
+                (iso === today ? ' today' : '')
+              }
+              onClick={() => onDateChange(iso)}
+              aria-current={iso === date ? 'date' : undefined}
+              aria-label={iso}
+            >
+              <span className="week-day-letter">{letter}</span>
+              <span className="week-day-num">{Number(iso.slice(8, 10))}</span>
+            </button>
+          )
+        })}
+      </div>
+
       <button
         type="button"
-        className="btn btn-icon"
-        onClick={() => onDateChange(addDays(date, 1))}
-        aria-label="Jour suivant"
+        className="btn btn-icon week-arrow"
+        onClick={() => onDateChange(addDays(monday, 7))}
+        aria-label="Semaine suivante"
       >
         <ChevronRight size={18} />
       </button>
-      {found && <span className="date-nav-tag">{found.program.label}</span>}
     </div>
   )
 }

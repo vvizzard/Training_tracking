@@ -78,10 +78,25 @@ finisher, avec pour chaque mouvement :
 - les **séries conseillées** et leur RPE, et la **charge courante** tirée de la déclinaison
   correspondante de l'exercice ;
 - un **sélecteur** quand le programme laisse le choix (« Pendulum, Belt ou Back Squat »,
-  « Landmine ou T-Bar Row »…). Le choix est mémorisé sous la clé
-  `suivi_programme_choix_v1` ;
+  « Landmine ou T-Bar Row »…). Il tient lieu de titre du bloc : celui-ci annonce donc
+  l'exercice réellement retenu, et non l'intitulé générique du programme. Le choix est
+  mémorisé sous la clé `suivi_programme_choix_v1` ;
 - les **liens vidéo** fournis par le programme ;
 - les **remarques** du coach, résumées en français.
+
+### Choisir la journée
+
+L'en-tête affiche la **semaine en cours**, du lundi au dimanche. Chaque jour se lit d'un coup
+d'œil : les jours d'entraînement sont encadrés, les jours de repos restés en gris, et une
+séance dont tous les blocs sont faits passe en vert. Un point marque la date du jour réel,
+qui n'est pas toujours celle affichée. Les flèches font défiler de semaine en semaine.
+
+À l'ouverture, la page se place sur **la séance la plus proche** quand aucun programme ne
+couvre la date du jour — sans quoi un programme terminé la semaine passée n'ouvrirait plus
+que sur un écran vide.
+
+Un filet vert, sur le bord bas du bandeau, suit l'avancement de la séance ; le compte exact
+(`3/8`) est repris dans la carte de la séance.
 
 ### Dérouler et enregistrer depuis la séance
 
@@ -93,8 +108,12 @@ Chaque ligne de série est cliquable :
   enregistrée **à la date de la séance affichée**, pas à celle du jour de consultation. Vider le
   champ efface le point.
 
-La charge affichée est celle enregistrée ce jour-là quand elle existe — repérée par un point
-vert — sinon la dernière charge connue avant cette date, en gris, à titre de repère.
+La charge affichée est celle enregistrée ce jour-là quand elle existe — sur fond vert — sinon
+la dernière charge connue avant cette date, en gris, à titre de repère.
+
+Sous la série, une ligne situe cette charge : **`dernière fois le 20/08`** tant que rien n'est
+noté ce jour-là, et **`dernière fois 50kg +5kg`** une fois la charge du jour enregistrée. C'est
+ce qui dit, sans quitter la séance, si elle progresse.
 
 Un bouton **« C'est fait »** en bas de chaque bloc le replie sur son seul titre ; « Rouvrir » le
 redéploie. L'état est mémorisé par bloc et par date, sous `suivi_programme_faits_v1`, et survit
