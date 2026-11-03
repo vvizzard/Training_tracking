@@ -21,11 +21,13 @@ import {
   loadDone,
   loadExercises,
   loadImportedPrograms,
+  loadSessions,
   markLegacyAdopted,
   saveChoices,
   saveDone,
   saveExercises,
   saveImportedPrograms,
+  saveSessions,
   setStorageScope,
 } from './storage.js'
 import {
@@ -56,6 +58,7 @@ export default function App() {
   )
   const [choices, setChoices] = useState(loadChoices)
   const [done, setDone] = useState(loadDone)
+  const [sessions, setSessions] = useState(loadSessions)
   const [imported, setImported] = useState(loadImportedPrograms)
   const [importOpen, setImportOpen] = useState(false)
   const [view, setView] = useState('exercices')
@@ -150,6 +153,10 @@ export default function App() {
     saveDone(done)
   }, [done])
 
+  useEffect(() => {
+    saveSessions(sessions)
+  }, [sessions])
+
   const selected = useMemo(
     () => exercises.find((e) => e.id === selectedId) || null,
     [exercises, selectedId]
@@ -206,8 +213,9 @@ export default function App() {
   }, [])
 
   // Charge saisie depuis le programme : elle est datée du jour de la séance
-  // affichée. Une valeur nulle efface le point de cette date.
-  const recordLoad = useCallback((exerciseId, variantId, date, load) => {
+  // affichée. Une valeur nulle efface le point de cette date. `sets` porte le
+  // détail série par série quand il a été saisi.
+  const recordLoad = useCallback((exerciseId, variantId, date, load, sets) => {
     setExercises((list) =>
       list.map((e) =>
         e.id !== exerciseId
@@ -222,12 +230,26 @@ export default function App() {
                       history:
                         load === null
                           ? v.history.filter((p) => p.date !== date)
-                          : upsertPoint(v.history, date, load),
+                          : upsertPoint(v.history, date, load, sets),
                     }
               ),
             }
       )
     )
+  }, [])
+
+  // Une séance se termine même incomplète : l'horodatage sert au résumé, et
+  // « Modifier » retire l'entrée pour revenir à la séance.
+  const finishSession = useCallback((date) => {
+    setSessions((s) => ({ ...s, [date]: { at: new Date().toISOString() } }))
+  }, [])
+
+  const reopenSession = useCallback((date) => {
+    setSessions((s) => {
+      const next = { ...s }
+      delete next[date]
+      return next
+    })
   }, [])
 
   // Un import remplace un programme de même identifiant, sinon s'ajoute à la
@@ -397,6 +419,7 @@ export default function App() {
             onDateChange={setDate}
             overrides={overrides}
             done={done}
+            sessions={sessions}
           />
         ) : (
           <div className="search">
@@ -442,9 +465,12 @@ export default function App() {
           onOpenExercise={setSelectedId}
           done={done}
           onToggleDone={toggleDone}
-          onRecordLoad={(exerciseId, variantId, load) =>
-            recordLoad(exerciseId, variantId, date, load)
+          onRecordLoad={(exerciseId, variantId, load, sets) =>
+            recordLoad(exerciseId, variantId, date, load, sets)
           }
+          session={sessions[date] || null}
+          onFinish={() => finishSession(date)}
+          onReopen={() => reopenSession(date)}
         />
       ) : (
         <ExerciseList groups={groups} onSelect={setSelectedId} />

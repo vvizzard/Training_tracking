@@ -85,6 +85,16 @@ export function fmtDateWeekday(iso) {
   }).format(toDate(iso))
 }
 
+// Horodatage ISO complet -> « 18:42 », à l'heure locale.
+export function fmtClock(iso) {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return new Intl.DateTimeFormat('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d)
+}
+
 // "2025-03-14" -> "14/03/2025"
 export function fmtDateLong(iso) {
   if (!iso || iso.length < 10) return iso || ''
@@ -164,10 +174,52 @@ export function rmValue(exercise) {
   return currentLoad(principalVariant(exercise).history)
 }
 
-// Insère ou remplace le point à cette date (une date = un point).
-export function upsertPoint(history, date, load) {
+// Insère ou remplace le point à cette date (une date = un point). `sets` porte
+// le détail série par série quand il a été saisi ; sans lui, le point garde sa
+// seule charge, comme avant.
+export function upsertPoint(history, date, load, sets) {
   const rest = (history || []).filter((p) => p.date !== date)
-  return sortHistory([...rest, { date, load }])
+  const point = sets && sets.length ? { date, load, sets } : { date, load }
+  return sortHistory([...rest, point])
+}
+
+// Séries prescrites par le programme : « 4x8-10 » donne 4 séries de « 8-10 ».
+// Un libellé sans multiplicateur — « 20-10-20 », « max » — compte pour une
+// série : on ne devine pas un protocole, les séries s'ajoutent à la main.
+export function parsePrescribedSets(label) {
+  const raw = String(label || '').trim()
+  const m = raw.match(/^(\d+)\s*[x×]\s*(.+)$/i)
+  if (!m) return { count: 1, reps: raw }
+  return { count: Math.min(Math.max(Number(m[1]), 1), 12), reps: m[2].trim() }
+}
+
+// Premier entier d'un libellé : « 8-10 » donne 8, « max » ne donne rien.
+export function firstNumber(label) {
+  const m = String(label || '').match(/\d+/)
+  return m ? Number(m[0]) : null
+}
+
+// Charge retenue pour la journée quand le détail est saisi : la plus lourde
+// des séries notées. C'est elle qui alimente la courbe de la déclinaison.
+export function setsLoad(sets) {
+  const loads = (sets || []).map((s) => s.load).filter((l) => Number.isFinite(l))
+  return loads.length ? Math.max(...loads) : null
+}
+
+// Volume d'un détail série par série : somme des reps multipliées par la charge.
+export function setsVolume(sets) {
+  let total = 0
+  for (const s of sets || []) {
+    if (Number.isFinite(s.load) && Number.isFinite(s.reps)) total += s.load * s.reps
+  }
+  return total
+}
+
+// « 1320 » -> « 1 320 kg ». Les volumes montent vite, l'espace insécable aide
+// à les lire d'un coup.
+export function fmtVolume(n) {
+  if (!Number.isFinite(n)) return '—'
+  return Math.round(n).toLocaleString('fr-FR') + ' kg'
 }
 
 // prefix : 'ex' pour un exercice, 'v' pour un format (variante).

@@ -49,11 +49,30 @@ const V3_KEY = 'suivi_charges_v3'
 const V2_KEY = 'suivi_charges_v2'
 const V1_KEY = 'suivi_charges_v1'
 
+// Détail série par série d'un point : une entrée par série faite, reps et
+// charge pouvant manquer l'une comme l'autre. Null quand rien n'est saisi, ce
+// qui laisse le point dans sa forme d'origine.
+function normalizeSets(sets) {
+  if (!Array.isArray(sets)) return null
+  const clean = sets
+    .filter((s) => s && typeof s === 'object')
+    .map((s) => ({
+      reps: Number.isFinite(s.reps) ? s.reps : null,
+      load: Number.isFinite(s.load) ? s.load : null,
+    }))
+  return clean.length ? clean : null
+}
+
 function normalizeHistory(history) {
   return Array.isArray(history)
     ? history
         .filter((p) => p && typeof p.date === 'string' && Number.isFinite(p.load))
-        .map((p) => ({ date: p.date, load: p.load }))
+        .map((p) => {
+          const sets = normalizeSets(p.sets)
+          return sets
+            ? { date: p.date, load: p.load, sets }
+            : { date: p.date, load: p.load }
+        })
     : []
 }
 
@@ -183,6 +202,7 @@ export function saveExercises(exercises) {
 export const CHOICES_KEY = 'suivi_programme_choix_v1'
 export const IMPORTED_KEY = 'suivi_programmes_importes_v1'
 export const DONE_KEY = 'suivi_programme_faits_v1'
+export const SESSIONS_KEY = 'suivi_seances_finies_v1'
 
 export function loadChoices() {
   try {
@@ -249,5 +269,28 @@ export function saveDone(done) {
     localStorage.setItem(scoped(DONE_KEY), JSON.stringify(done))
   } catch (err) {
     console.warn('Écriture des blocs faits impossible.', err)
+  }
+}
+
+// Séances terminées : { "2026-09-05": { at: "<horodatage ISO>" } }. Une séance
+// terminée s'affiche en résumé plutôt qu'en liste de blocs.
+export function loadSessions() {
+  try {
+    const raw = localStorage.getItem(scoped(SESSIONS_KEY)) || adoptLegacy(SESSIONS_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    return parsed
+  } catch (err) {
+    console.warn('Lecture des séances terminées impossible.', err)
+    return {}
+  }
+}
+
+export function saveSessions(sessions) {
+  try {
+    localStorage.setItem(scoped(SESSIONS_KEY), JSON.stringify(sessions))
+  } catch (err) {
+    console.warn('Écriture des séances terminées impossible.', err)
   }
 }

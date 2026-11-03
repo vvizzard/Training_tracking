@@ -5,8 +5,12 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  FlagTriangleRight,
+  ListChecks,
   Moon,
+  Plus,
   RotateCcw,
+  X,
 } from 'lucide-react'
 import {
   blockKey,
@@ -14,39 +18,135 @@ import {
   findProgramDay,
   nearestSessionDate,
 } from '../program.js'
+import { collectSessionEntries, findVariant, resolveName } from '../session.js'
+import SessionSummary from './SessionSummary.jsx'
 import {
   addDays,
+  firstNumber,
   fmtDateShort,
   fmtKg,
   fmtRpe,
   fmtSigned,
+  fmtVolume,
   loadForDate,
   parseNum,
+  parsePrescribedSets,
   previousPoint,
   RM_SCHEME,
+  setsLoad,
+  setsVolume,
   startOfWeek,
   todayISO,
   WEEKDAY_LETTERS,
 } from '../utils.js'
 
-// Résout le nom d'exercice retenu pour un mouvement : le choix enregistré s'il
-// est encore proposé, sinon la première option, sinon le mouvement unique.
-function resolveName(mov, key, choices) {
-  if (!mov.choices) return mov.match || null
-  const saved = choices[key]
-  return saved && mov.choices.includes(saved) ? saved : mov.choices[0]
-}
+// Détail série par série : une ligne par série faite, avec ses reps réelles et
+// sa charge. Il se déplie à la demande — la saisie rapide d'une seule charge
+// reste le geste par défaut.
+function SetSplit({ set, point, date, onSave, onClear }) {
+  const prescribed = parsePrescribedSets(set.reps)
+  const suggestedReps = firstNumber(prescribed.reps)
 
-// La déclinaison est cherchée sur le schéma indiqué, puis sur les reps
-// affichées : un exercice choisi en remplacement d'un autre n'a pas toujours
-// le même libellé de série (« 4 x max » contre « 4 x max prise large »).
-function findVariant(exercise, set) {
-  if (!exercise) return null
-  for (const scheme of [set.scheme, set.reps].filter(Boolean)) {
-    const variant = exercise.variants.find((v) => v.scheme === scheme)
-    if (variant) return variant
+  const [rows, setRows] = useState(() => {
+    if (point && point.sets) {
+      return point.sets.map((s) => ({
+        reps: s.reps === null ? '' : String(s.reps),
+        load: s.load === null ? '' : String(s.load),
+      }))
+    }
+    // Première ouverture : autant de lignes que de séries prescrites, remplies
+    // des reps conseillées et de la charge déjà notée s'il y en a une.
+    const load = point && Number.isFinite(point.load) ? String(point.load) : ''
+    return Array.from({ length: prescribed.count }, () => ({
+      reps: suggestedReps === null ? '' : String(suggestedReps),
+      load,
+    }))
+  })
+
+  // Chaque frappe est enregistrée : en salle, il n'y a pas de bouton de
+  // validation à oublier.
+  function commit(next) {
+    setRows(next)
+    const sets = next.map((r) => ({ reps: parseNum(r.reps), load: parseNum(r.load) }))
+    const filled = sets.filter((s) => s.reps !== null || s.load !== null)
+    if (!filled.length) {
+      onClear()
+      return
+    }
+    onSave(setsLoad(sets), sets)
   }
-  return null
+
+  const edit = (i, field, value) =>
+    commit(rows.map((r, j) => (j === i ? { ...r, [field]: value } : r)))
+
+  const sets = rows.map((r) => ({ reps: parseNum(r.reps), load: parseNum(r.load) }))
+  const heaviest = setsLoad(sets)
+  const volume = setsVolume(sets)
+
+  return (
+    <div className="split">
+      <div className="split-head">
+        <span className="split-col-n">Série</span>
+        <span className="split-col">Reps</span>
+        <span className="split-col">Charge</span>
+        <span className="split-col-x" />
+      </div>
+
+      {rows.map((row, i) => (
+        <div className="split-row" key={i}>
+          <span className="split-n">{i + 1}</span>
+          <input
+            inputMode="numeric"
+            value={row.reps}
+            onChange={(e) => edit(i, 'reps', e.target.value)}
+            placeholder={suggestedReps === null ? 'reps' : String(suggestedReps)}
+            aria-label={`Reps de la série ${i + 1}`}
+          />
+          <input
+            inputMode="decimal"
+            value={row.load}
+            onChange={(e) => edit(i, 'load', e.target.value)}
+            placeholder="kg"
+            aria-label={`Charge de la série ${i + 1}`}
+          />
+          {rows.length > 1 ? (
+            <button
+              type="button"
+              className="split-x"
+              onClick={() => commit(rows.filter((_, j) => j !== i))}
+              aria-label={`Retirer la série ${i + 1}`}
+            >
+              <X size={14} />
+            </button>
+          ) : (
+            <span className="split-col-x" />
+          )}
+        </div>
+      ))}
+
+      <div className="split-foot">
+        <button
+          type="button"
+          className="split-add"
+          onClick={() =>
+            commit([...rows, { reps: '', load: rows[rows.length - 1]?.load || '' }])
+          }
+        >
+          <Plus size={14} /> Série
+        </button>
+        {heaviest !== null && (
+          <span className="split-total">
+            {fmtKg(heaviest)} retenu{volume > 0 && ` · ${fmtVolume(volume)}`}
+          </span>
+        )}
+      </div>
+
+      <p className="hint">
+        Enregistré au {date}. La charge retenue pour la courbe est la plus lourde
+        des séries.
+      </p>
+    </div>
+  )
 }
 
 // Saisie d'une charge à la date de la séance affichée : c'est ce jour-là qu'on
@@ -175,7 +275,10 @@ function SetLine({ set, exercise, date, open, onToggle, editingId, onEdit, onRec
     ? loadForDate(variant.history, date)
     : { value: null, logged: false }
   const previous = variant ? previousPoint(variant.history, date) : null
+  const point = variant ? variant.history.find((p) => p.date === date) || null : null
   const isEditing = variant && editingId === variant.id
+  const [splitOpen, setSplitOpen] = useState(false)
+  const detailed = Boolean(point && point.sets)
 
   return (
     <div className="prog-set-wrap">
@@ -201,14 +304,52 @@ function SetLine({ set, exercise, date, open, onToggle, editingId, onEdit, onRec
             (load === null ? ' empty' : logged ? ' logged' : ' carry')
           }
           title={logged ? 'Enregistré ce jour-là' : 'Dernière charge connue'}
-          onClick={() => variant && onEdit(isEditing ? null : variant.id)}
+          /* Une fois le détail saisi, la charge en est déduite : la toucher
+             rouvre le détail plutôt qu'un champ qui l'écraserait. */
+          onClick={() =>
+            detailed
+              ? setSplitOpen(!splitOpen)
+              : variant && onEdit(isEditing ? null : variant.id)
+          }
           disabled={!variant}
         >
           {load === null ? '—' : fmtKg(load)}
         </button>
       </div>
 
-      {!isEditing && <SetReference previous={previous} load={load} logged={logged} />}
+      {!isEditing && (
+        <div className="prog-set-foot">
+          {variant && (
+            <button
+              type="button"
+              className={'split-toggle' + (detailed ? ' on' : '')}
+              onClick={() => {
+                setSplitOpen(!splitOpen)
+                onEdit(null)
+              }}
+              aria-expanded={splitOpen}
+            >
+              <ListChecks size={13} />
+              {detailed
+                ? `${point.sets.length} série${point.sets.length > 1 ? 's' : ''}`
+                : 'Détail'}
+            </button>
+          )}
+          <SetReference previous={previous} load={load} logged={logged} />
+        </div>
+      )}
+
+      {splitOpen && variant && (
+        <SetSplit
+          /* Changer de jour ou d'exercice repart du détail de cette date. */
+          key={`${variant.id}:${date}`}
+          set={set}
+          point={point}
+          date={date}
+          onSave={(next, sets) => onRecord(exercise.id, variant.id, next, sets)}
+          onClear={() => onRecord(exercise.id, variant.id, null)}
+        />
+      )}
 
       {isEditing && (
         <LoadEditor
@@ -525,6 +666,9 @@ export default function ProgramView({
   done,
   onToggleDone,
   onRecordLoad,
+  session,
+  onFinish,
+  onReopen,
 }) {
   const byName = useMemo(
     () => new Map(exercises.map((e) => [e.name, e])),
@@ -567,6 +711,31 @@ export default function ProgramView({
     )
   }
 
+  // Une séance terminée se consulte en résumé ; « Modifier » ramène ici.
+  if (session) {
+    return (
+      <SessionSummary
+        day={day}
+        date={date}
+        finishedAt={session.at}
+        progress={progress}
+        entries={collectSessionEntries({
+          day,
+          program,
+          dayKey,
+          choices,
+          byName,
+          date,
+          done,
+        })}
+        onEdit={onReopen}
+        onOpenExercise={onOpenExercise}
+      />
+    )
+  }
+
+  const remaining = progress ? progress.total - progress.count : 0
+
   return (
     <div className="prog">
       <section className="card prog-head">
@@ -605,15 +774,29 @@ export default function ProgramView({
           onRecord={onRecordLoad}
         />
       ))}
+
+      {/* Terminer n'exige pas d'avoir tout fait : ce qui reste est annoncé,
+          pas bloquant, et la séance se rouvre depuis son résumé. */}
+      <button type="button" className="btn btn-block prog-finish" onClick={onFinish}>
+        <FlagTriangleRight size={16} /> Terminer la séance
+        {remaining > 0 && (
+          <span className="prog-finish-rest">
+            {remaining} bloc{remaining > 1 ? 's' : ''} non fait
+            {remaining > 1 ? 's' : ''}
+          </span>
+        )}
+      </button>
     </div>
   )
 }
 
 // État d'un jour dans la barre de semaine : rien, repos, séance, séance faite.
-function weekDayState(iso, overrides, done) {
+// Une séance terminée compte comme faite même si des blocs sont restés ouverts.
+function weekDayState(iso, overrides, done, sessions) {
   const found = findProgramDay(iso, overrides)
   if (!found) return 'none'
   if (!found.day) return 'rest'
+  if (sessions[iso]) return 'done'
   const progress = dayProgress(found, done)
   return progress && progress.count === progress.total ? 'done' : 'session'
 }
@@ -621,7 +804,13 @@ function weekDayState(iso, overrides, done) {
 // Barre de semaine, affichée dans l'en-tête : les jours d'entraînement, les
 // jours de repos et les séances déjà faites se lisent d'un coup d'œil, et on
 // change de jour d'un seul geste.
-export function ProgramDateNav({ date, onDateChange, overrides, done = {} }) {
+export function ProgramDateNav({
+  date,
+  onDateChange,
+  overrides,
+  done = {},
+  sessions = {},
+}) {
   const monday = startOfWeek(date)
   const today = todayISO()
 
@@ -639,7 +828,7 @@ export function ProgramDateNav({ date, onDateChange, overrides, done = {} }) {
       <div className="week-days">
         {WEEKDAY_LETTERS.map((letter, i) => {
           const iso = addDays(monday, i)
-          const state = weekDayState(iso, overrides, done)
+          const state = weekDayState(iso, overrides, done, sessions)
           return (
             <button
               key={iso}

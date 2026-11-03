@@ -115,6 +115,49 @@ Sous la série, une ligne situe cette charge : **`dernière fois le 20/08`** tan
 noté ce jour-là, et **`dernière fois 50kg +5kg`** une fois la charge du jour enregistrée. C'est
 ce qui dit, sans quitter la séance, si elle progresse.
 
+### Détail série par série — en test
+
+> **En test.** Fonctionnalité en cours d'essai en conditions réelles. Le format de stockage
+> (`sets` dans le point) et la règle de charge retenue peuvent encore changer : ce qui est
+> saisi maintenant sert d'abord à juger l'ergonomie.
+
+À gauche de ce repère, un bouton **« Détail »** déplie une ligne par série, avec ses **reps
+réelles** et sa **charge**. Les lignes sont pré-remplies d'après les séries prescrites — `4x10`
+donne quatre lignes à 10 reps — et `+ Série` en ajoute une, la croix en retire une : une série
+sautée ou une série de plus se notent sans contorsion.
+
+Chaque frappe est enregistrée, il n'y a pas de bouton de validation à oublier. La **charge
+retenue** pour la courbe de la déclinaison est **la plus lourde des séries notées** ; le pied du
+tableau la rappelle avec le volume (`42.5kg retenu · 1 395 kg`). Une fois un détail saisi, le
+bouton de charge rouvre ce tableau au lieu du champ unique, qui l'écraserait, et la pastille
+affiche `4 séries` en vert.
+
+Le détail est stocké dans le point lui-même, sous `sets` : `{ date, load, sets: [{ reps, load }] }`.
+Un point sans détail garde sa forme d'origine, et la fiche de l'exercice rappelle le détail
+sous la date dans son historique.
+
+> Enregistrer une charge depuis la **fiche** de l'exercice pour une date qui portait un détail
+> remplace le point et **efface ce détail** : la charge saisie à la main ne correspond plus aux
+> séries relevées.
+
+### Terminer une séance — en test
+
+> **En test.** Fonctionnalité en cours d'essai en conditions réelles. Le contenu du résumé —
+> quels chiffres, quel graphique — est une première proposition, pas un choix arrêté.
+
+Un bouton **« Terminer la séance »** ferme la journée en bas de page, même si des blocs n'ont
+pas été faits — le nombre de blocs restants est annoncé sur le bouton, sans rien bloquer.
+
+La journée s'affiche alors en **résumé** : blocs faits, nombre de séries, volume total, un
+graphique du **volume par exercice**, la liste de ce qui a été noté avec son écart par rapport à
+la fois précédente et son détail série par série, puis ce qui est resté sans charge. Le volume
+est exact quand le détail est saisi, estimé sur les reps prescrites sinon — l'estimation est
+signalée par `≈`, pour ne pas faire passer une déduction pour une mesure.
+
+Le bouton **« Modifier »**, dans l'en-tête du résumé, rouvre la séance telle quelle. Les séances
+terminées sont mémorisées sous `suivi_seances_finies_v1`, par date, et comptent comme faites
+dans la barre de semaine même si tous les blocs ne l'étaient pas.
+
 Un bouton **« C'est fait »** en bas de chaque bloc le replie sur son seul titre ; « Rouvrir » le
 redéploie. L'état est mémorisé par bloc et par date, sous `suivi_programme_faits_v1`, et survit
 au rechargement.
@@ -314,12 +357,18 @@ format est le format principal : c'est le RM.** Les suivants sont ses déclinais
     { id: "v_0", scheme: "RM",      rpe: "",      history: [{ date: "2026-07-01", load: 90 },
                                                             { date: "2026-09-02", load: 95 }] },
     { id: "v_1", scheme: "4x8-10",  rpe: "8",     history: [{ date: "2026-09-02", load: 60 }] },
-    { id: "v_2", scheme: "3x12-15", rpe: "Échec", history: [{ date: "2026-09-02", load: 55 }] }
+    // un point peut porter le détail série par série ; `load` en est déduit
+    { id: "v_2", scheme: "3x12-15", rpe: "Échec", history: [
+      { date: "2026-09-02", load: 55, sets: [{ reps: 12, load: 55 }, { reps: 10, load: 55 }] }
+    ] }
   ]
 }
 ```
 
 - La **charge courante** d'un format est le dernier point de son `history` trié par date.
+- Un point porte éventuellement un **détail série par série** (`sets`), saisi depuis la page
+  Programme. `load` vaut alors la plus lourde des séries notées ; `reps` comme `load` peuvent
+  manquer sur une série.
 - Le **RM affiché** est donc la dernière charge relevée sur `variants[0]` : il se met à jour en
   enregistrant une charge datée sur le format principal, et il a sa propre courbe.
 - Le **delta** affiché dans la vue détail est `dernier point - premier point`, pour le format
@@ -355,6 +404,8 @@ du navigateur :
 )
 localStorage.removeItem('suivi_programme_choix_v1')
 localStorage.removeItem('suivi_programmes_importes_v1')
+localStorage.removeItem('suivi_programme_faits_v1')
+localStorage.removeItem('suivi_seances_finies_v1')
 // et, si un profil est actif, les mêmes clés suffixées par son nom :
 // suivi_charges_v5__zacharie, suivi_programme_choix_v1__zacharie, etc.
 ```

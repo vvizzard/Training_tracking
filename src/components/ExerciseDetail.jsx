@@ -502,7 +502,23 @@ export default function ExerciseDetail({ exercise, onBack, onUpdate, onDelete })
             <ul className="history">
               {[...history].reverse().map((p) => (
                 <li key={p.date} className="history-item">
-                  <span className="history-date">{fmtDateLong(p.date)}</span>
+                  <span className="history-date">
+                    {fmtDateLong(p.date)}
+                    {/* Détail série par série, quand il a été saisi depuis la
+                        page Programme. */}
+                    {p.sets && (
+                      <span className="history-sets">
+                        {p.sets
+                          .map(
+                            (s) =>
+                              `${s.reps === null ? '—' : fmtNum(s.reps)}×${
+                                s.load === null ? '—' : fmtNum(s.load)
+                              }`
+                          )
+                          .join('  ')}
+                      </span>
+                    )}
+                  </span>
                   <span className="history-load">{fmtKg(p.load)}</span>
                   <button
                     type="button"

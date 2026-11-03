@@ -1859,11 +1859,158 @@ input[type='date']::-webkit-calendar-picker-indicator {
   font-weight: 550;
 }
 
+/* Sous la série : à gauche le détail par série, à droite le repère. */
+.prog-set-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
 .prog-prev {
-  margin: 4px 2px 0;
+  margin: 0 2px 0 auto;
   font-size: 11.5px;
   color: #6b7280;
   text-align: right;
+}
+
+.split-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  min-height: 30px;
+  padding: 3px 9px 3px 7px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.split-toggle.on {
+  border-color: rgba(74, 222, 128, 0.35);
+  color: var(--accent);
+}
+
+@media (hover: hover) {
+  .split-toggle:hover {
+    background: var(--card-hover);
+  }
+}
+
+/* ---------- Détail série par série ---------- */
+
+.split {
+  margin-top: 7px;
+  padding: 9px 10px 8px;
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.split-head,
+.split-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 6px;
+}
+
+.split-head {
+  padding-bottom: 4px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+}
+
+.split-col {
+  text-align: center;
+}
+
+.split-row + .split-row {
+  margin-top: 5px;
+}
+
+.split-n {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 16px : en dessous, iOS zoome à la mise au point du champ. */
+.split-row input {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.split-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.split-x {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 42px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: #5a606b;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.split-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.split-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+  padding: 4px 11px 4px 8px;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.split-total {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.split .hint {
+  margin: 7px 0 0;
 }
 
 .prog-delta {
@@ -1878,4 +2025,222 @@ input[type='date']::-webkit-calendar-picker-indicator {
 
 .prog-delta.down {
   color: var(--danger);
+}
+
+/* ---------- Fin de séance ---------- */
+
+.prog-finish {
+  margin-top: 4px;
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.prog-finish-rest {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+/* ---------- Résumé d'une séance terminée ---------- */
+
+.recap-head {
+  border-left: 3px solid var(--accent);
+}
+
+.recap-head-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.recap-check {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.recap-head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.recap-head-text h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.recap-head-text p {
+  margin: 1px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.recap-head .btn-icon {
+  flex-shrink: 0;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 12px;
+  font-size: 12.5px;
+}
+
+.recap-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.recap-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 10px;
+  background: var(--input);
+  border-radius: var(--radius-sm);
+}
+
+.recap-stat-value {
+  font-size: 16px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.recap-stat-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+}
+
+.recap-note {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  font-style: italic;
+  color: #6b7280;
+}
+
+.recap-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 11px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.recap-list,
+.recap-skipped-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.recap-row + .recap-row {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.recap-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.recap-name {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.recap-name:disabled {
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .recap-name:not(:disabled):hover {
+    text-decoration: underline;
+  }
+}
+
+.recap-load {
+  flex-shrink: 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.recap-row-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.recap-reps {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.recap-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.recap-chip {
+  padding: 3px 8px;
+  background: var(--input);
+  border-radius: 7px;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.recap-chip em {
+  margin: 0 3px;
+  font-style: normal;
+  color: #5a606b;
+}
+
+.recap-skipped-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 26px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.recap-skipped-list li + li {
+  border-top: 1px solid var(--border);
+}
+
+.recap-skipped-list .recap-reps {
+  margin-left: auto;
+}
+
+.history-sets {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
 }
